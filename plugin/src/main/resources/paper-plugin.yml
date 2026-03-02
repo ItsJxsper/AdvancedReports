@@ -1,0 +1,6 @@
+name: AdvancedReports 
+version: '1.0-SNAPSHOT'
+main: de.itsjxsper.advancedreports.AdvancedReports
+api-version: '1.21'
+load: STARTUP
+authors: [ItsJxsper]
