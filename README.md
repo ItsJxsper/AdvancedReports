@@ -31,7 +31,7 @@ Plugin  ──REST──▶  Spring Boot  ──RabbitMQ──▶  Discord Bot
 | **Cooldown System**                          | Per-category cooldowns, persisted across restarts             |
 | **In-Game Admin GUI**                        | Chest inventory GUI — browse, inspect, and close reports      |
 | **Permission Nodes**                         | Vault/LuckPerms integration with granular permissions         |
-| **PostgreSQL**                               | PostgreSQL for production                                     |
+| **MongoDB**                                  | MongoDB for production                                        |
 | **Discord Integration**                      | New reports as embeds with Accept / Reject / Teleport buttons |
 | **RabbitMQ Events**                          | Lightweight notifications after every DB write                |
 
@@ -56,7 +56,7 @@ Plugin  ──REST──▶  Spring Boot  ──RabbitMQ──▶  Discord Bot
 ┌─────────────────────────────────────────┐
 │           Spring Boot Backend           │
 │                                         │
-│  REST API  →  Service  →  MySQL/JPA     │
+│  REST API  →  Service  →  MongoDB       │
 │                 │                       │
 │                 └──after DB write──▶    │
 │              RabbitMQ Fanout Publish    │
@@ -84,16 +84,16 @@ Plugin  ──REST──▶  Spring Boot  ──RabbitMQ──▶  Discord Bot
 
 ## Tech Stack
 
-| Layer            | Technology                            |
-|------------------|---------------------------------------|
-| Minecraft Plugin | PaperMC API 1.21+, Java 21            |
-| Backend          | Spring Boot 3.x, Spring AMQP, Spring Data JPA |
-| Discord Bot      | JDA 5, Spring Boot module             |
-| Message Broker   | RabbitMQ 3.12+                        |
-| Database         | PostgreSQL                            |
-| File Storage     | AWS S3                                |
-| Build            | Gradle                                |
-| Deployment       | Docker Compose                        |
+| Layer            | Technology                                        |
+|------------------|---------------------------------------------------|
+| Minecraft Plugin | PaperMC API 1.21+, Java 21                        |
+| Backend          | Spring Boot 3.x, Spring AMQP, Spring Data MongoDB |
+| Discord Bot      | JDA 5, Spring Boot module                         |
+| Message Broker   | RabbitMQ 3.12+                                    |
+| Database         | MongoDB                                           |
+| File Storage     | AWS S3                                            |
+| Build            | Gradle                                            |
+| Deployment       | Docker Compose                                    |
 
 ---
 
@@ -160,7 +160,7 @@ Spring Boot publishes a lightweight event to the `reports.notify` Fanout Exchang
 ```yaml
 database:
   host: localhost
-  port: 3306
+  port: 27017
   name: advancedreports
   user: mc_user
   password: secret
@@ -195,10 +195,9 @@ server:
   port: 8080
 
 spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/advancedreports
-    username: mc_user
-    password: secret
+  data:
+    mongodb:
+      uri: mongodb://mc_user:secret@localhost:27017/advancedreports
   rabbitmq:
     host: localhost
     port: 5672
@@ -267,7 +266,7 @@ AWS_SECRET_ACCESS_KEY=your-aws-secret
 docker compose up -d
 ```
 
-This starts RabbitMQ (`:5672`, management UI `:15672`), MySQL, Spring Boot backend (`:8080`), and the Discord Bot.
+This starts RabbitMQ (`:5672`, management UI `:15672`), MongoDB, Spring Boot backend (`:8080`), and the Discord Bot.
 
 ### 4. Build and install the plugin
 
