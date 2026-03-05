@@ -87,10 +87,10 @@ Plugin  ──REST──▶  Spring Boot  ──RabbitMQ──▶  Discord Bot
 | Layer            | Technology                                        |
 |------------------|---------------------------------------------------|
 | Minecraft Plugin | PaperMC API 1.21+, Java 21                        |
-| Backend          | Spring Boot 3.x, Spring AMQP, Spring Data MongoDB |
+| Backend          | Spring Boot 3.x, Spring AMQP, Spring Data JPA    |
 | Discord Bot      | JDA 5, Spring Boot module                         |
 | Message Broker   | RabbitMQ 3.12+                                    |
-| Database         | MongoDB                                           |
+| Database         | PostgreSQL                                        |
 | File Storage     | AWS S3                                            |
 | Build            | Gradle                                            |
 | Deployment       | Docker Compose                                    |
@@ -160,7 +160,7 @@ Spring Boot publishes a lightweight event to the `reports.notify` Fanout Exchang
 ```yaml
 database:
   host: localhost
-  port: 27017
+  port: 5432
   name: advancedreports
   user: mc_user
   password: secret
@@ -195,9 +195,17 @@ server:
   port: 8080
 
 spring:
-  data:
-    mongodb:
-      uri: mongodb://mc_user:secret@localhost:27017/advancedreports
+  datasource:
+    url: jdbc:postgresql://localhost:5432/advancedreports
+    username: mc_user
+    password: secret
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   rabbitmq:
     host: localhost
     port: 5672
