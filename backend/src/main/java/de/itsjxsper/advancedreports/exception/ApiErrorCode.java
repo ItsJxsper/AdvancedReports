@@ -1,0 +1,12 @@
+package de.itsjxsper.advancedreports.exception;
+
+public enum ApiErrorCode {
+    METHOD_NOT_ALLOWED,
+    METHOD_ARGUMENT_TYPE_MISMATCH,
+    ILLEGAL_ARGUMENT,
+    UNSUPPORTED_OPERATION,
+    MISSING_REQUEST_PARAMETER,
+    PLAYER_ALREADY_EXISTS,
+    PLAYER_NOT_FOUND,
+    INTERNAL_SERVER_ERROR
+}
