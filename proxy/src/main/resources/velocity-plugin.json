@@ -1,0 +1,8 @@
+{
+  "id": "advancedreports",
+  "name": "AdvancedReportsProxy",
+  "version": "${version}",
+  "main": "de.itsjxsper.advancedreports.proxy.AdvancedReportsProxy"
+  ,"url": "https://github.com/ItsJxsper/AdvancedReports"
+  ,"authors": ["ItsJxsper"]
+}
