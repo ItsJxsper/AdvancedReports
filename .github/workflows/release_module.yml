@@ -1,0 +1,85 @@
+name: Release Module
+on:
+  push:
+    tags:
+      - "common-v*"
+      - "api-v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  determine-module:
+    runs-on: ubuntu-latest
+    outputs:
+      module: ${{ steps.parse.outputs.module }}
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - name: Tag Name
+        id: parse
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          MODULE="${TAG%%-v*}"
+          VERSION="${TAG#${MODULE}-v}"
+
+          if [[ "$MODULE" != "common" && "$MODULE" != "api" ]]; then
+            echo "::error::Unbekanntes Modul im Tag: $TAG"
+            exit 1
+          fi
+
+          echo "module=$MODULE" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Erkanntes Modul: $MODULE, Version: $VERSION"
+
+  build-and-publish:
+    needs: determine-module
+    runs-on: ubuntu-latest
+    env:
+      MODULE: ${{ needs.determine-module.outputs.module }}
+      VERSION: ${{ needs.determine-module.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Version im Tag gegen gradle.properties prüfen
+        run: |
+          FILE_VERSION=$(grep '^moduleVersion=' "$MODULE/gradle.properties" | cut -d'=' -f2)
+          if [[ "$FILE_VERSION" != "$VERSION" ]]; then
+            echo "::error::Tag-Version ($VERSION) stimmt nicht mit $MODULE/gradle.properties ($FILE_VERSION) überein"
+            exit 1
+          fi
+
+      - name: Build ${{ env.MODULE }}
+        run: ./gradlew :${{ env.MODULE }}:build
+
+      - name: Publish nach GitHub Packages
+        run: ./gradlew :${{ env.MODULE }}:publish
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: JAR-Pfad ermitteln
+        id: jar
+        run: |
+          JAR_PATH=$(find "$MODULE/build/libs" -maxdepth 1 -name "*.jar" ! -name "*-sources.jar" ! -name "*-javadoc.jar" | head -n1)
+          echo "path=$JAR_PATH" >> "$GITHUB_OUTPUT"
+          echo "Gefundene JAR: $JAR_PATH"
+
+      - name: GitHub Release erstellen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "${{ env.MODULE }} v${{ env.VERSION }}"
+          generate_release_notes: true
+          files: |
+            ${{ steps.jar.outputs.path }}
