@@ -38,6 +38,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+
       - name: JDK 25 einrichten
         uses: actions/setup-java@v4
         with:
