@@ -58,7 +58,9 @@ subprojects {
                     }
 
                     scm {
-                        url.set("https://github.com/ItsJxsper/monorepo")
+                        url.set("https://github.com/ItsJxsper/advancedreports")
+                        connection.set("scm:git:https://github.com/ItsJxsper/advancedreports.git")
+                        developerConnection.set("scm:git:https://github.com/ItsJxsper/advancedreports.git")
                     }
                 }
             }
@@ -67,7 +69,7 @@ subprojects {
         repositories {
             maven {
                 name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/ItsJxsper/monorepo")
+                url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
