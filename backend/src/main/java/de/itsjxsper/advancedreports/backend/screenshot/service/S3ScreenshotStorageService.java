@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.screenshot.service;
 
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotStorageException;
-import de.itsjxsper.advancedreports.backend.screenshot.model.ScreenshotDownloadDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDownloadDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
