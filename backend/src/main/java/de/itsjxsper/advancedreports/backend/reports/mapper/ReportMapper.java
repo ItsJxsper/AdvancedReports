@@ -1,8 +1,8 @@
 package de.itsjxsper.advancedreports.backend.reports.mapper;
 
 import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportDto;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportUpdateDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.mapstruct.*;
 
 import java.util.Optional;
@@ -27,7 +27,7 @@ public interface ReportMapper {
             @Mapping(source = "reason", target = "reason", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "serverUUID", target = "server.serverUuid", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "location", target = "location", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "status", target = "status", qualifiedByName = "unwrapOptional"),
+            @Mapping(source = "status", target = "reportStatus", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "handledByUUID", target = "handledBy.playerUuid", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "handlerNote", target = "handlerNote", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "screenshotId", target = "screenshotEntity.id", qualifiedByName = "unwrapOptional")
@@ -42,7 +42,7 @@ public interface ReportMapper {
             @Mapping(source = "reason", target = "reason", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "serverUUID", target = "server.serverUuid", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "location", target = "location", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "status", target = "status", qualifiedByName = "unwrapOptional"),
+            @Mapping(source = "status", target = "reportStatus", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "handledByUUID", target = "handledBy.playerUuid", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "handlerNote", target = "handlerNote", qualifiedByName = "unwrapOptional"),
             @Mapping(source = "screenshotId", target = "screenshotEntity.id", qualifiedByName = "unwrapOptional")
