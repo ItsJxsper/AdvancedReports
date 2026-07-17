@@ -1,8 +1,8 @@
 package de.itsjxsper.advancedreports.backend.server.controller;
 
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
-import de.itsjxsper.advancedreports.backend.server.model.ServerDto;
 import de.itsjxsper.advancedreports.backend.server.service.ServerService;
+import de.itsjxsper.advancedreports.common.model.server.ServerDto;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

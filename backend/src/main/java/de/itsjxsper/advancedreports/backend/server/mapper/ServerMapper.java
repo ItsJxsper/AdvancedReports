@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.server.mapper;
 
 import de.itsjxsper.advancedreports.backend.server.data.entity.ServerEntity;
-import de.itsjxsper.advancedreports.backend.server.model.ServerDto;
+import de.itsjxsper.advancedreports.common.model.server.ServerDto;
 import org.mapstruct.*;
 
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)

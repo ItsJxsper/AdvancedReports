@@ -4,7 +4,7 @@ import de.itsjxsper.advancedreports.backend.server.data.entity.ServerEntity;
 import de.itsjxsper.advancedreports.backend.server.data.repository.ServerRepository;
 import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundException;
 import de.itsjxsper.advancedreports.backend.server.mapper.ServerMapper;
-import de.itsjxsper.advancedreports.backend.server.model.ServerDto;
+import de.itsjxsper.advancedreports.common.model.server.ServerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
