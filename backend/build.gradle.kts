@@ -30,7 +30,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.itsjxsper:common:0.00.1")
+    implementation("de.itsjxsper:common:0.00.3")
 
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
