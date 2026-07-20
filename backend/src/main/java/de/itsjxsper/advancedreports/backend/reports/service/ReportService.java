@@ -46,14 +46,14 @@ public class ReportService {
 
         var reportEntity = this.reportMapper.toEntity(reportUpdateDto);
 
-        if (reportUpdateDto.serverUUID().isPresent()) {
-            UUID serverUUID = reportUpdateDto.serverUUID().orElseThrow();
+        if (reportUpdateDto.serverUUID() != null) {
+            UUID serverUUID = reportUpdateDto.serverUUID();
             reportEntity.setServer(this.serverRepository.findById(serverUUID)
                     .orElseThrow(() -> new ServerNotFoundException(serverUUID)));
         }
 
-        if (reportUpdateDto.screenshotId().isPresent()) {
-            Long screenshotId = reportUpdateDto.screenshotId().orElseThrow();
+        if (reportUpdateDto.screenshotId() != null) {
+            Long screenshotId = reportUpdateDto.screenshotId();
             reportEntity.setScreenshotEntity(this.screenshotRepository.findById(screenshotId)
                     .orElseThrow(() -> new ScreenshotNotFoundException(screenshotId)));
         }
