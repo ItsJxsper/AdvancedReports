@@ -1,6 +1,6 @@
-package de.itsjxsper.advancedreports.backend.categories.data.repository;
+package de.itsjxsper.advancedreports.backend.category.data.repository;
 
-import de.itsjxsper.advancedreports.backend.categories.data.entity.CategoryEntity;
+import de.itsjxsper.advancedreports.backend.category.data.entity.CategoryEntity;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

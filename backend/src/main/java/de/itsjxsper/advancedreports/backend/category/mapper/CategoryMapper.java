@@ -1,7 +1,7 @@
-package de.itsjxsper.advancedreports.backend.categories.mapper;
+package de.itsjxsper.advancedreports.backend.category.mapper;
 
-import de.itsjxsper.advancedreports.backend.categories.data.entity.CategoryEntity;
-import de.itsjxsper.advancedreports.backend.categories.model.CategoryDto;
+import de.itsjxsper.advancedreports.backend.category.data.entity.CategoryEntity;
+import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
 import org.mapstruct.*;
 
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)

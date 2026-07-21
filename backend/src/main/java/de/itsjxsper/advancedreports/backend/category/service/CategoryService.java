@@ -1,11 +1,11 @@
-package de.itsjxsper.advancedreports.backend.categories.service;
+package de.itsjxsper.advancedreports.backend.category.service;
 
-import de.itsjxsper.advancedreports.backend.categories.data.repository.CategoryRepository;
-import de.itsjxsper.advancedreports.backend.categories.exceptions.CategoryAlreadyExistException;
-import de.itsjxsper.advancedreports.backend.categories.exceptions.CategoryNotFoundException;
-import de.itsjxsper.advancedreports.backend.categories.mapper.CategoryMapper;
-import de.itsjxsper.advancedreports.backend.categories.model.CategoryDto;
-import de.itsjxsper.advancedreports.backend.categories.model.CategoryReportCountDto;
+import de.itsjxsper.advancedreports.backend.category.data.repository.CategoryRepository;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyExistException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
+import de.itsjxsper.advancedreports.backend.category.mapper.CategoryMapper;
+import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
+import de.itsjxsper.advancedreports.common.model.catogory.CategoryReportCountDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
