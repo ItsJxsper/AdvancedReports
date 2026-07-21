@@ -1,9 +1,9 @@
 package de.itsjxsper.advancedreports.backend.player.controller;
 
-import de.itsjxsper.advancedreports.backend.player.model.PlayerDTO;
-import de.itsjxsper.advancedreports.backend.player.model.PlayerUpdateDTO;
 import de.itsjxsper.advancedreports.backend.player.service.PlayerService;
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
+import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
+import de.itsjxsper.advancedreports.common.model.player.PlayerUpdateDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

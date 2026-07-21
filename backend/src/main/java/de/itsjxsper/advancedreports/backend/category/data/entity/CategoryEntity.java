@@ -1,4 +1,4 @@
-package de.itsjxsper.advancedreports.backend.categories.data.entity;
+package de.itsjxsper.advancedreports.backend.category.data.entity;
 
 import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import jakarta.persistence.*;

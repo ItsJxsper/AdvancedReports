@@ -1,6 +1,6 @@
 package de.itsjxsper.advancedreports.backend.reports.service;
 
-import de.itsjxsper.advancedreports.backend.categories.data.repository.CategoryRepository;
+import de.itsjxsper.advancedreports.backend.category.data.repository.CategoryRepository;
 import de.itsjxsper.advancedreports.backend.config.RabbitMQConfiguration;
 import de.itsjxsper.advancedreports.backend.messaging.events.ReportCreatedEvent;
 import de.itsjxsper.advancedreports.backend.messaging.events.ReportUpdatedEvent;
@@ -9,12 +9,12 @@ import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import de.itsjxsper.advancedreports.backend.reports.data.repository.ReportRepository;
 import de.itsjxsper.advancedreports.backend.reports.exceptions.ReportNotFoundException;
 import de.itsjxsper.advancedreports.backend.reports.mapper.ReportMapper;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportDto;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportUpdateDto;
 import de.itsjxsper.advancedreports.backend.screenshot.data.repository.ScreenshotRepository;
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
 import de.itsjxsper.advancedreports.backend.server.data.repository.ServerRepository;
 import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundException;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -46,14 +46,14 @@ public class ReportService {
 
         var reportEntity = this.reportMapper.toEntity(reportUpdateDto);
 
-        if (reportUpdateDto.serverUUID().isPresent()) {
-            UUID serverUUID = reportUpdateDto.serverUUID().orElseThrow();
+        if (reportUpdateDto.serverUUID() != null) {
+            UUID serverUUID = reportUpdateDto.serverUUID();
             reportEntity.setServer(this.serverRepository.findById(serverUUID)
                     .orElseThrow(() -> new ServerNotFoundException(serverUUID)));
         }
 
-        if (reportUpdateDto.screenshotId().isPresent()) {
-            Long screenshotId = reportUpdateDto.screenshotId().orElseThrow();
+        if (reportUpdateDto.screenshotId() != null) {
+            Long screenshotId = reportUpdateDto.screenshotId();
             reportEntity.setScreenshotEntity(this.screenshotRepository.findById(screenshotId)
                     .orElseThrow(() -> new ScreenshotNotFoundException(screenshotId)));
         }
@@ -85,7 +85,7 @@ public class ReportService {
         this.rabbitTemplate.convertAndSend(
                 RabbitMQConfiguration.EXCHANGE,
                 "",
-                new ReportUpdatedEvent(savedEntity.getId(), savedEntity.getStatus().name(), savedEntity.getHandledBy().getPlayerUuid(), Instant.now())
+                new ReportUpdatedEvent(savedEntity.getId(), savedEntity.getReportStatus().name(), savedEntity.getHandledBy().getPlayerUuid(), Instant.now())
         );
 
         return this.reportMapper.toDto(savedEntity);

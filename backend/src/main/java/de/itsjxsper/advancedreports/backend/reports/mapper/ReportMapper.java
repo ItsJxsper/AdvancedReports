@@ -1,11 +1,9 @@
 package de.itsjxsper.advancedreports.backend.reports.mapper;
 
 import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportDto;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportUpdateDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.mapstruct.*;
-
-import java.util.Optional;
 
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)
 public interface ReportMapper {
@@ -21,36 +19,31 @@ public interface ReportMapper {
     ReportDto toDto(ReportsEntity entity);
 
     @Mappings({
-            @Mapping(source = "reporterUUID", target = "reporter.playerUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "reportedUUID", target = "reported.playerUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "categoryId", target = "categoryEntity.id", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "reason", target = "reason", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "serverUUID", target = "server.serverUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "location", target = "location", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "status", target = "status", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "handledByUUID", target = "handledBy.playerUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "handlerNote", target = "handlerNote", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "screenshotId", target = "screenshotEntity.id", qualifiedByName = "unwrapOptional")
+            @Mapping(source = "reporterUUID", target = "reporter.playerUuid"),
+            @Mapping(source = "reportedUUID", target = "reported.playerUuid"),
+            @Mapping(source = "categoryId", target = "categoryEntity.id"),
+            @Mapping(source = "reason", target = "reason"),
+            @Mapping(source = "serverUUID", target = "server.serverUuid"),
+            @Mapping(source = "location", target = "location"),
+            @Mapping(source = "reportStatus", target = "reportStatus"),
+            @Mapping(source = "handledByUUID", target = "handledBy.playerUuid"),
+            @Mapping(source = "handlerNote", target = "handlerNote"),
+            @Mapping(source = "screenshotId", target = "screenshotEntity.id")
     })
     ReportsEntity toEntity(ReportUpdateDto dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings({
-            @Mapping(source = "reporterUUID", target = "reporter.playerUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "reportedUUID", target = "reported.playerUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "categoryId", target = "categoryEntity.id", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "reason", target = "reason", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "serverUUID", target = "server.serverUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "location", target = "location", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "status", target = "status", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "handledByUUID", target = "handledBy.playerUuid", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "handlerNote", target = "handlerNote", qualifiedByName = "unwrapOptional"),
-            @Mapping(source = "screenshotId", target = "screenshotEntity.id", qualifiedByName = "unwrapOptional")
+            @Mapping(source = "reporterUUID", target = "reporter.playerUuid"),
+            @Mapping(source = "reportedUUID", target = "reported.playerUuid"),
+            @Mapping(source = "categoryId", target = "categoryEntity.id"),
+            @Mapping(source = "reason", target = "reason"),
+            @Mapping(source = "serverUUID", target = "server.serverUuid"),
+            @Mapping(source = "location", target = "location"),
+            @Mapping(source = "reportStatus", target = "reportStatus"),
+            @Mapping(source = "handledByUUID", target = "handledBy.playerUuid"),
+            @Mapping(source = "handlerNote", target = "handlerNote"),
+            @Mapping(source = "screenshotId", target = "screenshotEntity.id")
     })
     ReportsEntity partialUpdate(ReportUpdateDto dto, @MappingTarget ReportsEntity entity);
-
-    @Named("unwrapOptional")
-    default <T> T unwrap(Optional<T> optional) {
-        return optional.orElse(null);
-    }
 }

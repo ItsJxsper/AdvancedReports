@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.screenshot.data.entity;
 
 import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
-import de.itsjxsper.advancedreports.backend.screenshot.enums.UploadStatus;
+import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

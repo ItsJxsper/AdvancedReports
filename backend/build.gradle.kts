@@ -10,7 +10,7 @@ description = "backend"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -22,9 +22,16 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven {
+        name = "githubPackages"
+        url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
+        credentials(PasswordCredentials::class)
+    }
 }
 
 dependencies {
+    implementation("de.itsjxsper:common:0.00.3")
+
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     //implementation("org.springframework.boot:spring-boot-starter-security")
