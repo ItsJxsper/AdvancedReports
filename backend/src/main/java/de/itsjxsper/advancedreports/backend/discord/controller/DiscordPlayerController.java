@@ -1,8 +1,8 @@
 package de.itsjxsper.advancedreports.backend.discord.controller;
 
-import de.itsjxsper.advancedreports.backend.discord.model.DiscordPlayerDto;
 import de.itsjxsper.advancedreports.backend.discord.service.DiscordPlayerService;
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
+import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

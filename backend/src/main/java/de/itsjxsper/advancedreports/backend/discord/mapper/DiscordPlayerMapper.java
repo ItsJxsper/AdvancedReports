@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.discord.mapper;
 
 import de.itsjxsper.advancedreports.backend.discord.data.entity.DiscordPlayerEntity;
-import de.itsjxsper.advancedreports.backend.discord.model.DiscordPlayerDto;
+import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
 import org.mapstruct.*;
 
 @Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE, componentModel = MappingConstants.ComponentModel.SPRING)
