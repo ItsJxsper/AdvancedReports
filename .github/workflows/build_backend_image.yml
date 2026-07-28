@@ -1,3 +1,14 @@
+name: Build and Push Backend Docker Image
+on:
+  push:
+    tags:
+      - "backend-v*"
+
+permissions:
+  contents: read
+  packages: write
+
+
 env:
   REGISTRY: ghcr.io
 
