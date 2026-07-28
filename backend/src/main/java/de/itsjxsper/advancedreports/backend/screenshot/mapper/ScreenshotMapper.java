@@ -16,6 +16,12 @@ public interface ScreenshotMapper {
 
     ScreenshotEntity toScreenshotEntity(ScreenshotUpdateDto screenshotUpdateDto);
 
+    @Mapping(target = "s3Url", source = "screenshotEntity.s3Url")
+    @Mapping(target = "s3ObjectKey", source = "screenshotEntity.s3ObjectKey")
+    @Mapping(target = "originalFilename", source = "screenshotEntity.originalFilename")
+    @Mapping(target = "contentType", source = "screenshotEntity.contentType")
+    @Mapping(target = "fileSizeBytes", source = "screenshotEntity.fileSizeBytes")
+    @Mapping(target = "uploadStatus", source = "screenshotEntity.uploadStatus")
     ScreenshotDto toScreenshotDto(ScreenshotEntity screenshotEntity, ScreenshotUpdateDto screenshotUpdateDto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
