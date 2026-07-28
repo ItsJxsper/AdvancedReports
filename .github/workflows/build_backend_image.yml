@@ -32,8 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.determine-version.outputs.version }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      USER: ${{ github.actor }}
+      actor: ${{ github.actor }}
+      token: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
