@@ -1,9 +1,9 @@
 package de.itsjxsper.advancedreports.backend.reports.controller;
 
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportDto;
-import de.itsjxsper.advancedreports.backend.reports.model.ReportUpdateDto;
 import de.itsjxsper.advancedreports.backend.reports.service.ReportService;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
