@@ -1,16 +1,5 @@
-name: Build and Push Backend Docker Image
-on:
-  push:
-    tags:
-      - "backend-v*"
-
-permissions:
-  contents: read
-  packages: write
-
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/advancedreports-backend
 
 jobs:
   determine-version:
@@ -23,7 +12,6 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#backend-v}"
-
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Erkannte Version: $VERSION"
 
@@ -37,6 +25,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Repository Owner lowercase ermitteln
+        id: image
+        run: |
+          echo "name=$(echo '${{ github.repository_owner }}/advancedreports-backend' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -60,19 +53,19 @@ jobs:
       - name: Docker Image mit Spring Boot Buildpacks bauen
         run: |
           ./gradlew :backend:bootBuildImage \
-            --imageName="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+            --imageName="${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}"
 
       - name: Zusätzlich als 'latest' taggen
         run: |
-          docker tag "${REGISTRY}/${IMAGE_NAME}:${VERSION}" "${REGISTRY}/${IMAGE_NAME}:latest"
+          docker tag "${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}" "${REGISTRY}/${{ steps.image.outputs.name }}:latest"
 
       - name: Images pushen
         run: |
-          docker push "${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-          docker push "${REGISTRY}/${IMAGE_NAME}:latest"
+          docker push "${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}"
+          docker push "${REGISTRY}/${{ steps.image.outputs.name }}:latest"
 
       - name: Zusammenfassung
         run: |
           echo "### Backend Docker Image veröffentlicht :rocket:" >> "$GITHUB_STEP_SUMMARY"
-          echo "- \`${REGISTRY}/${IMAGE_NAME}:${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- \`${REGISTRY}/${IMAGE_NAME}:latest\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`${REGISTRY}/${{ steps.image.outputs.name }}:latest\`" >> "$GITHUB_STEP_SUMMARY"
