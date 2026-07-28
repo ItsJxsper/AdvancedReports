@@ -25,7 +25,10 @@ repositories {
     maven {
         name = "githubPackages"
         url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
-        credentials(PasswordCredentials::class)
+        credentials {
+            username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("actor")
+            password = providers.gradleProperty("gpr.token").orNull ?: System.getenv("token")
+        }
     }
 }
 
@@ -53,7 +56,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-rabbitmq")
-    runtimeOnly("org.postgresql:postgresql")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
