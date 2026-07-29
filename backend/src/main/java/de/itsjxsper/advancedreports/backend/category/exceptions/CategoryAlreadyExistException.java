@@ -1,4 +1,4 @@
-package de.itsjxsper.advancedreports.backend.categories.exceptions;
+package de.itsjxsper.advancedreports.backend.category.exceptions;
 
 public class CategoryAlreadyExistException extends RuntimeException {
 

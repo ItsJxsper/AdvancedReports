@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.exceptions;
 
-import de.itsjxsper.advancedreports.backend.categories.exceptions.CategoryAlreadyExistException;
-import de.itsjxsper.advancedreports.backend.categories.exceptions.CategoryNotFoundException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyExistException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
 import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFoundException;
 import de.itsjxsper.advancedreports.backend.player.exception.PlayerAlreadyExistException;
 import de.itsjxsper.advancedreports.backend.player.exception.PlayerNotFoundException;

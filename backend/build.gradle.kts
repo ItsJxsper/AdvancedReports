@@ -10,7 +10,7 @@ description = "backend"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
@@ -22,9 +22,19 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven {
+        name = "githubPackages"
+        url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
+        credentials {
+            username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("actor")
+            password = providers.gradleProperty("gpr.token").orNull ?: System.getenv("token")
+        }
+    }
 }
 
 dependencies {
+    implementation("de.itsjxsper:common:0.00.3")
+
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     //implementation("org.springframework.boot:spring-boot-starter-security")
@@ -46,7 +56,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-rabbitmq")
-    runtimeOnly("org.postgresql:postgresql")
+    testImplementation("org.testcontainers:postgresql:1.20.4")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

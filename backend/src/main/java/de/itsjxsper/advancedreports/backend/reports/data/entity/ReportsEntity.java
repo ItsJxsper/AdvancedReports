@@ -1,10 +1,10 @@
 package de.itsjxsper.advancedreports.backend.reports.data.entity;
 
-import de.itsjxsper.advancedreports.backend.categories.data.entity.CategoryEntity;
+import de.itsjxsper.advancedreports.backend.category.data.entity.CategoryEntity;
 import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
-import de.itsjxsper.advancedreports.backend.reports.eums.Status;
 import de.itsjxsper.advancedreports.backend.screenshot.data.entity.ScreenshotEntity;
 import de.itsjxsper.advancedreports.backend.server.data.entity.ServerEntity;
+import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -45,7 +45,7 @@ public class ReportsEntity {
     private String location;
     @Column(name = "status", nullable = false)
     @JdbcTypeCode(SqlTypes.VARCHAR)
-    private Status status;
+    private ReportStatus reportStatus;
     @ManyToOne(optional = false)
     @JoinColumn(name = "handled_by_player_uuid", nullable = false)
     private PlayerEntity handledBy;

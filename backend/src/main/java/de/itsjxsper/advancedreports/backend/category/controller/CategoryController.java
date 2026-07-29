@@ -1,9 +1,9 @@
-package de.itsjxsper.advancedreports.backend.categories.controller;
+package de.itsjxsper.advancedreports.backend.category.controller;
 
-import de.itsjxsper.advancedreports.backend.categories.model.CategoryDto;
-import de.itsjxsper.advancedreports.backend.categories.model.CategoryReportCountDto;
-import de.itsjxsper.advancedreports.backend.categories.service.CategoryService;
+import de.itsjxsper.advancedreports.backend.category.service.CategoryService;
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
+import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
+import de.itsjxsper.advancedreports.common.model.catogory.CategoryReportCountDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

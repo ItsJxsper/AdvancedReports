@@ -2,9 +2,10 @@ package de.itsjxsper.advancedreports.backend.screenshot.service;
 
 import de.itsjxsper.advancedreports.backend.screenshot.data.entity.ScreenshotEntity;
 import de.itsjxsper.advancedreports.backend.screenshot.data.repository.ScreenshotRepository;
-import de.itsjxsper.advancedreports.backend.screenshot.enums.UploadStatus;
-import de.itsjxsper.advancedreports.backend.screenshot.model.ScreenshotDto;
-import de.itsjxsper.advancedreports.backend.screenshot.model.ScreenshotUpdateDto;
+import de.itsjxsper.advancedreports.backend.screenshot.mapper.ScreenshotMapper;
+import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUpdateDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -22,11 +23,13 @@ public class ScreenshotService {
     private final S3ScreenshotStorageService screenshotStorageService;
     private final RabbitTemplate rabbitTemplate;
 
+    private final ScreenshotMapper screenshotMapper;
+
     public ScreenshotDto createScreenshot(ScreenshotUpdateDto screenshotUpdateDto) {
         log.debug("Creating screenshot with url={} and status={}", screenshotUpdateDto.s3Url(), screenshotUpdateDto.uploadStatus());
 
         ScreenshotEntity screenshotEntity = new ScreenshotEntity();
-        applyUpdateDto(screenshotEntity, screenshotUpdateDto);
+        screenshotEntity = this.screenshotMapper.partialUpdateScreenshotEntity(screenshotUpdateDto, screenshotEntity);
 
         if (screenshotEntity.getUploadStatus() == null) {
             screenshotEntity.setUploadStatus(UploadStatus.SUCCESS);
@@ -35,7 +38,7 @@ public class ScreenshotService {
         ScreenshotEntity savedEntity = this.screenshotRepository.save(screenshotEntity);
         log.debug("Created screenshot with id={}", savedEntity.getId());
 
-        return toDto(savedEntity);
+        return this.screenshotMapper.toScreenshotDto(savedEntity);
     }
 
     public ScreenshotDto uploadScreenshot(MultipartFile file) {
@@ -50,7 +53,7 @@ public class ScreenshotService {
         ScreenshotEntity savedEntity = this.screenshotRepository.save(screenshotEntity);
         log.debug("Uploaded screenshot id={} objectKey={}", savedEntity.getId(), savedEntity.getS3ObjectKey());
 
-        return toDto(savedEntity);
+        return this.screenshotMapper.toScreenshotDto(savedEntity);
     }
 
     public ScreenshotDto updateScreenshot(Long screenshotId, ScreenshotUpdateDto screenshotUpdateDto) {
@@ -61,16 +64,12 @@ public class ScreenshotService {
             return null;
         }
 
-        screenshotUpdateDto.s3ObjectKey().ifPresent(screenshotEntity::setS3ObjectKey);
-        screenshotUpdateDto.originalFilename().ifPresent(screenshotEntity::setOriginalFilename);
-        screenshotUpdateDto.contentType().ifPresent(screenshotEntity::setContentType);
-        screenshotUpdateDto.fileSizeBytes().ifPresent(screenshotEntity::setFileSizeBytes);
-        screenshotUpdateDto.uploadStatus().ifPresent(screenshotEntity::setUploadStatus);
+        screenshotEntity = this.screenshotMapper.partialUpdateScreenshotEntity(screenshotUpdateDto, screenshotEntity);
 
         ScreenshotEntity savedEntity = this.screenshotRepository.save(screenshotEntity);
         log.debug("Updated screenshot with id={}", savedEntity.getId());
 
-        return toDto(savedEntity);
+        return this.screenshotMapper.toScreenshotDto(savedEntity);
     }
 
     public void deleteScreenshot(Long screenshotId) {
@@ -97,7 +96,7 @@ public class ScreenshotService {
             return null;
         }
 
-        return toDto(screenshotEntity);
+        return this.screenshotMapper.toScreenshotDto(screenshotEntity);
     }
 
     public byte[] downloadScreenshot(Long screenshotId) {
@@ -119,8 +118,7 @@ public class ScreenshotService {
     public Page<ScreenshotDto> getScreenshots(Pageable pageable) {
         log.debug("Fetching screenshots with pageable={}", pageable);
 
-        return this.screenshotRepository.findAll(pageable)
-                .map(this::toDto);
+        return this.screenshotRepository.findAll(pageable).map(this.screenshotMapper::toScreenshotDto);
     }
 
     public long countScreenshots() {
@@ -129,29 +127,8 @@ public class ScreenshotService {
         return count;
     }
 
-    private ScreenshotDto toDto(ScreenshotEntity screenshotEntity) {
-        return new ScreenshotDto(
-                screenshotEntity.getId(),
-                screenshotEntity.getS3Url(),
-                screenshotEntity.getS3ObjectKey(),
-                screenshotEntity.getOriginalFilename(),
-                screenshotEntity.getContentType(),
-                screenshotEntity.getFileSizeBytes(),
-                screenshotEntity.getUploadStatus()
-        );
-    }
-
-    private void applyUpdateDto(ScreenshotEntity screenshotEntity, ScreenshotUpdateDto screenshotUpdateDto) {
-        screenshotUpdateDto.s3ObjectKey().ifPresent(screenshotEntity::setS3ObjectKey);
-        screenshotUpdateDto.originalFilename().ifPresent(screenshotEntity::setOriginalFilename);
-        screenshotUpdateDto.contentType().ifPresent(screenshotEntity::setContentType);
-        screenshotUpdateDto.fileSizeBytes().ifPresent(screenshotEntity::setFileSizeBytes);
-        screenshotUpdateDto.uploadStatus().ifPresent(screenshotEntity::setUploadStatus);
-    }
-
     private void applyStoredScreenshot(ScreenshotEntity screenshotEntity, S3ScreenshotStorageService.StoredScreenshot storedScreenshot) {
         screenshotEntity.setS3ObjectKey(storedScreenshot.objectKey());
-        screenshotEntity.setS3Url(storedScreenshot.storageUri());
         screenshotEntity.setOriginalFilename(storedScreenshot.originalFilename());
         screenshotEntity.setContentType(storedScreenshot.contentType());
         screenshotEntity.setFileSizeBytes(storedScreenshot.fileSizeBytes());

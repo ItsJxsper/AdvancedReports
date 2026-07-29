@@ -2,9 +2,9 @@ package de.itsjxsper.advancedreports.backend.screenshot.controller;
 
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
-import de.itsjxsper.advancedreports.backend.screenshot.model.ScreenshotDto;
-import de.itsjxsper.advancedreports.backend.screenshot.model.ScreenshotUpdateDto;
 import de.itsjxsper.advancedreports.backend.screenshot.service.ScreenshotService;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUpdateDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
