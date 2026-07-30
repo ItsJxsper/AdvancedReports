@@ -79,8 +79,8 @@ subprojects {
                 name = "githubPackages"
                 url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
                 credentials {
-                    username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
-                    password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+                    username = project.findProperty("gpr.user") as String? ?: System.getenv("actor")
+                    password = project.findProperty("gpr.key") as String? ?: System.getenv("token")
                 }
             }
         }
