@@ -6,13 +6,10 @@ plugins {
 description = "Common module - shared utilities and models"
 
 dependencies {
-    implementation(libs.jetbrains.annotations)
+    implementation("org.jetbrains:annotations:26.1.0")
 
-    implementation(libs.jakarta.validation.api)
+    implementation("jakarta.validation:jakarta.validation-api:3.1.1")
 
-    implementation(libs.jackson.databind)
-    implementation(libs.jackson.datatype.jsr310)
-
-    compileOnly(libs.lombok)
-    annotationProcessor(libs.lombok)
+    compileOnly("org.projectlombok:lombok:1.18.46")
+    annotationProcessor("org.projectlombok:lombok:1.18.46")
 }
