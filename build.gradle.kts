@@ -8,6 +8,14 @@ allprojects {
 
     repositories {
         mavenCentral()
+        gradlePluginPortal()
+        maven("https://maven.pkg.github.com/ItsJxsper/advancedreports") {
+            name = "githubPackages"
+            credentials {
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
     }
 }
 
