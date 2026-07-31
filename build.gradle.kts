@@ -12,8 +12,8 @@ allprojects {
         maven("https://maven.pkg.github.com/ItsJxsper/advancedreports") {
             name = "githubPackages"
             credentials {
-                username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("actor")
-                password = providers.gradleProperty("gpr.token").orNull ?: System.getenv("token")
+                username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
             }
         }
     }
@@ -79,8 +79,8 @@ subprojects {
                 name = "githubPackages"
                 url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
                 credentials {
-                    username = project.findProperty("gpr.user") as String? ?: System.getenv("actor")
-                    password = project.findProperty("gpr.key") as String? ?: System.getenv("token")
+                    username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                    password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
                 }
             }
         }
