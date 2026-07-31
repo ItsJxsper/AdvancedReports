@@ -9,21 +9,72 @@ package de.itsjxsper.advancedreports.common.enums.exceptions.api;
  * without string comparisons).
  */
 public enum ApiErrorCode {
+    /**
+     * The HTTP method used is not allowed for this endpoint.
+     */
     METHOD_NOT_ALLOWED,
+    /**
+     * A method argument has the wrong type.
+     */
     METHOD_ARGUMENT_TYPE_MISMATCH,
+    /**
+     * An illegal argument was provided.
+     */
     ILLEGAL_ARGUMENT,
+    /**
+     * The operation is not supported.
+     */
     UNSUPPORTED_OPERATION,
+    /**
+     * A required request parameter is missing.
+     */
     MISSING_REQUEST_PARAMETER,
+    /**
+     * The player already exists.
+     */
     PLAYER_ALREADY_EXISTS,
+    /**
+     * The player was not found.
+     */
     PLAYER_NOT_FOUND,
+    /**
+     * The Discord user was not found.
+     */
     DISCORD_USER_NOT_FOUND,
+    /**
+     * The category already exists.
+     */
     CATEGORY_ALREADY_EXISTS,
+    /**
+     * The category was not found.
+     */
     CATEGORY_NOT_FOUND,
+    /**
+     * The server was not found.
+     */
     SERVER_NOT_FOUND,
+    /**
+     * The screenshot was not found.
+     */
     SCREENSHOT_NOT_FOUND,
+    /**
+     * An error occurred while storing the screenshot.
+     */
     SCREENSHOT_STORAGE_ERROR,
+    /**
+     * The report was not found.
+     */
     REPORT_NOT_FOUND,
+    /**
+     * The rate limit has been exceeded.
+     */
     RATE_LIMIT_EXCEEDED,
+    /**
+     * A required header is missing.
+     */
     MISSING_HEADER,
+    /**
+     * An internal server error occurred.
+     */
     INTERNAL_SERVER_ERROR
 }

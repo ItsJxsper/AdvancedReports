@@ -2,7 +2,7 @@ package de.itsjxsper.advancedreports.common.exceptions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.api.ApiErrorResponse;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import lombok.Getter;
 
 /**
@@ -18,12 +18,21 @@ import lombok.Getter;
 @Getter
 public class ApiException extends RuntimeException {
 
-    private final int httpStatus;
+    /**
+     * Internal API error code.
+     */
     private final ApiErrorCode errorCode;
+    /**
+     * HTTP status code.
+     */
+    private final int httpStatus;
 
     /**
      * For pure network errors (timeout, connection lost, etc.) – there was no
      * HTTP response from the backend, so there is neither a status code nor a {@link ApiErrorCode}.
+     *
+     * @param message the error message
+     * @param cause   the cause of the exception
      */
     public ApiException(String message, Throwable cause) {
         super(message, cause);
@@ -33,6 +42,10 @@ public class ApiException extends RuntimeException {
 
     /**
      * For Backend responses with a known {@link ApiErrorResponse} body.
+     *
+     * @param httpStatus the HTTP status code
+     * @param errorCode  the internal API error code
+     * @param message    the error message
      */
     public ApiException(int httpStatus, ApiErrorCode errorCode, String message) {
         super(message);
@@ -48,6 +61,12 @@ public class ApiException extends RuntimeException {
      * (e.g., because the backend is using a newer version of {@code common}),
      * a generic message with a status code is returned instead of
      * causing the deserialization to fail outright.
+     *
+     * @param httpStatus   the HTTP status code
+     * @param rawBody      the raw response body as string
+     * @param objectMapper the object mapper for JSON deserialization
+     *
+     * @return a new ApiException instance
      */
     public static ApiException fromHttpResponse(int httpStatus, String rawBody, ObjectMapper objectMapper) {
         if (rawBody != null && !rawBody.isBlank()) {
@@ -64,10 +83,20 @@ public class ApiException extends RuntimeException {
         return new ApiException(httpStatus, null, "The backend responded with the status:" + httpStatus);
     }
 
+    /**
+     * Checks if the error is due to rate limiting.
+     *
+     * @return true if the HTTP status is 429 (Too Many Requests)
+     */
     public boolean isRateLimited() {
         return httpStatus == 429;
     }
 
+    /**
+     * Checks if the error is a "not found" error.
+     *
+     * @return true if the error code or status code indicates a missing resource
+     */
     public boolean isNotFound() {
         return errorCode == ApiErrorCode.REPORT_NOT_FOUND
                 || errorCode == ApiErrorCode.PLAYER_NOT_FOUND
