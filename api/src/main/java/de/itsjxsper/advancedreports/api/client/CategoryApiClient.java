@@ -16,6 +16,7 @@ import java.util.concurrent.Executor;
  * All endpoints only use {@code @RateLimited} with default values
  * (server header is enough; no Player/Discord header required).
  * <p>
+ * TODO: Fix the typo in the package name. <br>
  * Note: The package name deliberately follows that of the {@code common} module’s
  * {@code de.itsjxsper.advancedreports.common.model.catogory} (typo in the
  * original package – carried over here to ensure compatibility with the existing DTOs.

@@ -43,6 +43,9 @@ public final class AdvancedReportsApi {
     @Getter
     private final CategoryApiClient categoryApiClient;
 
+    @Getter
+    private final DiscordPlayerApiClient discordPlayerApiClient;
+
     public AdvancedReportsApi(AdvancedReportsApiConfig config) {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -62,6 +65,7 @@ public final class AdvancedReportsApi {
         String baseUrl = config.getBaseUrl();
 
         this.categoryApiClient = new CategoryApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
+        this.discordPlayerApiClient = new DiscordPlayerApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
     }
 
     /**
