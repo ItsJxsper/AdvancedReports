@@ -2,6 +2,8 @@ package de.itsjxsper.advancedreports.api.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import de.itsjxsper.advancedreports.api.interceptor.RetryOn429Interceptor;
+import de.itsjxsper.advancedreports.api.interceptor.ServerHeaderInterceptor;
 import lombok.Getter;
 import okhttp3.OkHttpClient;
 
@@ -49,6 +51,9 @@ public final class AdvancedReportsApi {
     @Getter
     private final PlayerApiClient playerApiClient;
 
+    @Getter
+    private final ReportsApiClient reportsApiClient;
+
     public AdvancedReportsApi(AdvancedReportsApiConfig config) {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -70,6 +75,7 @@ public final class AdvancedReportsApi {
         this.categoryApiClient = new CategoryApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
         this.discordPlayerApiClient = new DiscordPlayerApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
         this.playerApiClient = new PlayerApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
+        this.reportsApiClient = new ReportsApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
     }
 
     /**
