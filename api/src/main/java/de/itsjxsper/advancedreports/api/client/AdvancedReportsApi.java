@@ -2,6 +2,7 @@ package de.itsjxsper.advancedreports.api.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.Getter;
 import okhttp3.OkHttpClient;
 
 import java.util.concurrent.Executor;
@@ -39,6 +40,9 @@ public final class AdvancedReportsApi {
 
     private final ExecutorService executorService;
 
+    @Getter
+    private final CategoryApiClient categoryApiClient;
+
     public AdvancedReportsApi(AdvancedReportsApiConfig config) {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -56,6 +60,8 @@ public final class AdvancedReportsApi {
         OkHttpClient httpClient = AdvancedReportsHttpClientFactory.create(config);
 
         String baseUrl = config.getBaseUrl();
+
+        this.categoryApiClient = new CategoryApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
     }
 
     /**
