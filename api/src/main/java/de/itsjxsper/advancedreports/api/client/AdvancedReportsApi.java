@@ -14,7 +14,7 @@ import java.util.concurrent.Executors;
 /**
  * Central entry point for the AdvancedReports backend API.
  * <p>
- * Bundles the domain-specific clients ({@link #reports()}, {@link #screenshots()}, ...)
+ * Bundles the domain-specific clients ({@code #reports()}, {@code #screenshots()}, {@code #servers()})
  * and configures the underlying {@link OkHttpClient} once with:
  * <ul>
  *     <li>{@link ServerHeaderInterceptor} – global {@code X-Server-UUID} header</li>
@@ -57,6 +57,9 @@ public final class AdvancedReportsApi {
     @Getter
     private final ScreenshotsApiClient screenshotsApiClient;
 
+    @Getter
+    final ServerApiClient serverApiClient;
+
     public AdvancedReportsApi(AdvancedReportsApiConfig config) {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -80,6 +83,7 @@ public final class AdvancedReportsApi {
         this.playerApiClient = new PlayerApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
         this.reportsApiClient = new ReportsApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
         this.screenshotsApiClient = new ScreenshotsApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
+        this.serverApiClient = new ServerApiClient(httpClient, baseUrl, objectMapper, effectiveExecutor);
     }
 
     /**
