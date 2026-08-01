@@ -53,9 +53,6 @@ public final class AdvancedReportsApiConfig {
         if (baseUrl == null || baseUrl.isBlank()) {
             throw new IllegalStateException("baseUrl must not be blank");
         }
-        if (serverUuid == null) {
-            throw new IllegalStateException("serverUuid must not be null");
-        }
 
         this.baseUrl = baseUrl;
         this.serverUuid = serverUuid;
