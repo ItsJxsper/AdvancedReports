@@ -11,6 +11,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okio.BufferedSink;
 import okio.Okio;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,12 +36,25 @@ class AdvancedReportsPluginLoader implements PluginLoader {
             .readTimeout(30, TimeUnit.SECONDS)
             .build();
 
+    private final AdvancedReportsPlugin plugin = AdvancedReportsPlugin.getInstance();
+
     @Override
     public void classloader(final PluginClasspathBuilder builder) {
-        // Add dynamically loaded libraries here
+        try {
+            Files.createDirectories(LIBS_DIR);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Failed to create libs directory");
+        }
+
+        VersionCache versionCache = new VersionCache(LIBS_DIR);
+        LatestVersionResolver resolver = new LatestVersionResolver();
+
+        for (DependencySpec spec : DEPENDENCY_SPECS) {
+            handleDependency(builder, spec, versionCache, resolver);
+        }
     }
 
-    private void handleDependency(PluginClasspathBuilder classpathBuilder, DependencySpec dependencySpec, VersionCache cache, LatestVersionResolver resolver) {
+    private void handleDependency(PluginClasspathBuilder classpathBuilder, @NonNull DependencySpec dependencySpec, @NonNull VersionCache cache, @NonNull LatestVersionResolver resolver) {
 
         String installed = cache.getInstalledVersion(dependencySpec.cacheKey());
         String latest = resolver.resolveLatest(dependencySpec);
@@ -74,7 +88,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         return Files.exists(localJarPath(spec, version));
     }
 
-    private Path localJarPath(DependencySpec spec, String version) {
+    private @NonNull Path localJarPath(@NonNull DependencySpec spec, String version) {
         String fileName = switch (spec.source()) {
             case MAVEN_CENTRAL -> spec.artifactId() + "-" + version + ".jar";
             case GITHUB_RELEASE -> spec.githubRepo().replace("/", "_") + "-" + version + ".jar";
@@ -82,7 +96,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         return LIBS_DIR.resolve(fileName);
     }
 
-    private void loadLocalJar(PluginClasspathBuilder classpathBuilder, DependencySpec spec, String version) {
+    private void loadLocalJar(@NonNull PluginClasspathBuilder classpathBuilder, DependencySpec spec, String version) {
         classpathBuilder.addLibrary(new JarLibrary(localJarPath(spec, version)));
     }
 
@@ -99,7 +113,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         }
     }
 
-    private void downloadMavenArtifact(DependencySpec spec, String version, Path target) throws IOException {
+    private void downloadMavenArtifact(@NonNull DependencySpec spec, String version, Path target) throws IOException {
         String groupPath = spec.groupId().replace('.', '/');
         String url = spec.repoUrl()
                 + (spec.repoUrl().endsWith("/") ? "" : "/")
@@ -109,7 +123,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         downloadFile(url, target);
     }
 
-    private void downloadGithubAsset(DependencySpec spec, String version, Path target) throws IOException {
+    private void downloadGithubAsset(@NonNull DependencySpec spec, String version, Path target) throws IOException {
         String apiUrl = "https://api.github.com/repos/" + spec.githubRepo() + "/releases/tags/" + version;
 
         Request request = new Request.Builder()
@@ -145,7 +159,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         downloadFile(downloadUrl, target);
     }
 
-    private boolean matchesPattern(String fileName, String pattern) {
+    private boolean matchesPattern(@NonNull String fileName, @NonNull String pattern) {
         String regex = pattern.replace(".", "\\.").replace("*", ".*");
         return fileName.matches(".*" + regex + "$");
     }

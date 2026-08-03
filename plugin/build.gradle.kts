@@ -19,6 +19,8 @@ dependencies {
     implementation(libs.gson)
     implementation(libs.okhttp)
     implementation(libs.jetbrains.annotations)
+
+    compileOnly(project(":common"))
 }
 
 paperPluginYaml {
@@ -27,6 +29,7 @@ paperPluginYaml {
     loader = "de.itsjxsper.advancedreports.plugin.AdvancedReportsPluginLoader"
     apiVersion = "26.2"
 
+    name = "AdvancedReports"
     load = BukkitPluginYaml.PluginLoadOrder.STARTUP
     authors.addAll("ItsJxsper")
     website = "https://github.com/ItsJxsper/AdvancedReports"
