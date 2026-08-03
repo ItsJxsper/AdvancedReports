@@ -14,6 +14,11 @@ repositories {
 
 dependencies {
     compileOnly(libs.paper.api)
+    implementation(libs.lombok)
+    annotationProcessor(libs.lombok)
+    implementation(libs.gson)
+    implementation(libs.okhttp)
+    implementation(libs.jetbrains.annotations)
 }
 
 paperPluginYaml {
