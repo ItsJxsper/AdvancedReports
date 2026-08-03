@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 class AdvancedReportsPluginLoader implements PluginLoader {
 
     private static final List<DependencySpec> DEPENDENCY_SPECS = List.of(
-            DependencySpec.githubRelease("ItsJxsper/AdvancedReports", "common-*.jar ")
+            DependencySpec.githubRelease("ItsJxsper/AdvancedReports", "common-*.jar")
     );
 
     private static final Path LIBS_DIR = Path.of("libs");
