@@ -26,7 +26,8 @@ import java.util.regex.Pattern;
 class AdvancedReportsPluginLoader implements PluginLoader {
 
     private static final List<DependencySpec> DEPENDENCY_SPECS = List.of(
-            DependencySpec.githubRelease("ItsJxsper/AdvancedReports", "common-*.jar")
+            DependencySpec.githubRelease("ItsJxsper/AdvancedReports", "common-*.jar"),
+            DependencySpec.githubRelease("ItsJxsper/AdvancedReports", "api-*.jar")
     );
 
     private static final Path LIBS_DIR = Path.of("libs");
@@ -43,7 +44,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         try {
             Files.createDirectories(LIBS_DIR);
         } catch (IOException e) {
-            plugin.getLogger().severe("Failed to create libs directory");
+            this.plugin.getLogger().severe("Failed to create libs directory");
         }
 
         VersionCache versionCache = new VersionCache(LIBS_DIR);
@@ -64,7 +65,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
             if (installed != null) {
                 loadLocalJar(classpathBuilder, dependencySpec, installed);
             } else {
-                System.err.println("[SmartPluginLoader] Could not determine a version for "
+                this.plugin.getLogger().info("Could not determine a version for "
                         + dependencySpec.cacheKey() + " (no network and nothing installed locally)");
             }
             return;
@@ -107,8 +108,9 @@ class AdvancedReportsPluginLoader implements PluginLoader {
                 case MAVEN_CENTRAL -> downloadMavenArtifact(spec, version, target);
                 case GITHUB_RELEASE -> downloadGithubAsset(spec, version, target);
             }
-            System.out.println("[SmartPluginLoader] Installed " + spec.cacheKey() + " -> " + version);
+            this.plugin.getLogger().info("Installed " + spec.cacheKey() + " -> " + version);
         } catch (IOException e) {
+            this.plugin.getLogger().severe("Failed to download dependency " + spec.cacheKey());
             throw new RuntimeException("Failed to download dependency " + spec.cacheKey(), e);
         }
     }
@@ -135,6 +137,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         String body;
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful() || response.body() == null) {
+                this.plugin.getLogger().severe("GitHub API request failed with status " + response.code());
                 throw new IOException("GitHub API request failed with status " + response.code());
             }
             body = response.body().string();
@@ -153,6 +156,7 @@ class AdvancedReportsPluginLoader implements PluginLoader {
         }
 
         if (downloadUrl == null) {
+            this.plugin.getLogger().severe("No matching release asset found for pattern: " + spec.assetNamePattern());
             throw new IOException("No matching release asset found for pattern: " + spec.assetNamePattern());
         }
 

@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.jetbrains.annotations)
 
     compileOnly(project(":common"))
+    compileOnly(project(":api"))
 }
 
 paperPluginYaml {
