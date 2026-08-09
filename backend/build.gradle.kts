@@ -33,7 +33,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.itsjxsper:common:0.00.3")
+    implementation(project(":common"))
 
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -62,4 +62,12 @@ dependencies {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+
+    val mockitoAgent = configurations.testRuntimeClasspath.get()
+        .files
+        .find { it.name.contains("mockito-core") }
+
+    if (mockitoAgent != null) {
+        jvmArgs("-javaagent:${mockitoAgent.absolutePath}")
+    }
 }
