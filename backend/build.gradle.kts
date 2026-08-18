@@ -33,7 +33,7 @@ repositories {
 }
 
 dependencies {
-    implementation("de.itsjxsper:common:0.00.3")
+    implementation(project(":common"))
 
     implementation("org.springframework.boot:spring-boot-starter-amqp")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -44,7 +44,9 @@ dependencies {
     implementation("org.mapstruct:mapstruct:1.6.3")
     implementation("com.bucket4j:bucket4j-redis:8.10.1")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    testImplementation("org.testcontainers:postgresql")
+    // The application talks to PostgreSQL but shipped without a JDBC driver, so the
+    // datasource could never be created. Required at runtime, not just in tests.
+    runtimeOnly("org.postgresql:postgresql")
     compileOnly("org.projectlombok:lombok")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
     annotationProcessor("org.projectlombok:lombok")
@@ -56,10 +58,37 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-rabbitmq")
-    testImplementation("org.testcontainers:postgresql:1.20.4")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.testcontainers:testcontainers-minio")
+    testImplementation("com.redis:testcontainers-redis")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+
+    val mockitoAgent = configurations.testRuntimeClasspath.get()
+        .files
+        .find { it.name.contains("mockito-core") }
+
+    if (mockitoAgent != null) {
+        jvmArgs("-javaagent:${mockitoAgent.absolutePath}")
+    }
+}
+
+// Runs everything that does not need a Docker daemon: pure Mockito unit tests
+// and @WebMvcTest slices. Integration (*IT) and end-to-end (*E2ETest) tests are
+// excluded because they start Testcontainers.
+tasks.register<Test>("unitTest") {
+    description = "Runs only the tests that do not require Docker."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    filter {
+        includeTestsMatching("*Test")
+        excludeTestsMatching("*IT")
+        excludeTestsMatching("*E2ETest")
+    }
 }
