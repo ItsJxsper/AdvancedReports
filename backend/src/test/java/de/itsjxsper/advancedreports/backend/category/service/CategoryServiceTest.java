@@ -6,6 +6,7 @@ import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyE
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
 import de.itsjxsper.advancedreports.backend.category.mapper.CategoryMapper;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
+import de.itsjxsper.advancedreports.common.model.catogory.CategoryReportCountDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -204,6 +205,59 @@ class CategoryServiceTest {
 
             assertThatThrownBy(() -> categoryService.getCategory(1L))
                     .isInstanceOf(CategoryNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("getCategoryWithReports")
+    class GetCategoryWithReports {
+
+        @Test
+        @DisplayName("lädt die Kategorie über den EntityGraph inklusive Reports")
+        void shouldReturnCategoryWithReports() {
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
+            when(categoryMapper.toDto(categoryEntity)).thenReturn(categoryDto);
+
+            CategoryDto result = categoryService.getCategoryWithReports(1L);
+
+            assertThat(result).isEqualTo(categoryDto);
+            verify(categoryRepository).findWithReportsById(1L);
+        }
+
+        @Test
+        @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
+        void shouldThrowWhenNotFound() {
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> categoryService.getCategoryWithReports(1L))
+                    .isInstanceOf(CategoryNotFoundException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("countCategoriesByReportCount")
+    class CountCategoriesByReportCount {
+
+        @Test
+        @DisplayName("projiziert die Object[]-Zeilen der Query auf CategoryReportCountDto")
+        void shouldProjectRowsToDto() {
+            when(categoryRepository.countReportsPerCategory()).thenReturn(List.of(
+                    new Object[]{1L, "bugs", 3L},
+                    new Object[]{2L, "cheating", 0L}));
+
+            var result = categoryService.countCategoriesByReportCount();
+
+            assertThat(result).containsExactly(
+                    new CategoryReportCountDto(1L, "bugs", 3L),
+                    new CategoryReportCountDto(2L, "cheating", 0L));
+        }
+
+        @Test
+        @DisplayName("liefert eine leere Liste, wenn keine Kategorien existieren")
+        void shouldReturnEmptyList() {
+            when(categoryRepository.countReportsPerCategory()).thenReturn(List.of());
+
+            assertThat(categoryService.countCategoriesByReportCount()).isEmpty();
         }
     }
 
