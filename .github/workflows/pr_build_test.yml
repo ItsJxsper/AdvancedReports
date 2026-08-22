@@ -1,0 +1,100 @@
+name: PR Build und Tests
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+permissions:
+  contents: read
+  packages: read
+
+# Neuer Push auf denselben PR bricht den laufenden Job ab
+concurrency:
+  group: pr-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# settings.gradle.kts und build.gradle.kts lesen genau diese beiden Variablen
+env:
+  actor: ${{ github.actor }}
+  token: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build-and-unit-test:
+    name: Build und Unit-Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # proxy braucht 21, alle anderen Module 25 - Gradle kann ohne
+      # Toolchain-Resolver nichts nachladen, also beide installieren
+      - name: JDK 21 und 25 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Alle Module bauen (ohne Tests)
+        run: ./gradlew build -x test --stacktrace
+
+      - name: Unit-Tests (ohne Docker)
+        run: ./gradlew :backend:unitTest --stacktrace
+
+      - name: Testberichte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            backend/build/reports/tests/
+            backend/build/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  integration-test:
+    name: Integrations- und E2E-Tests
+    needs: build-and-unit-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: JDK 21 und 25 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Docker-Daemon prüfen
+        run: docker info
+
+      - name: Integrations- und E2E-Tests (Testcontainers)
+        run: ./gradlew :backend:integrationTest --stacktrace
+
+      - name: Testberichte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: |
+            backend/build/reports/tests/
+            backend/build/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

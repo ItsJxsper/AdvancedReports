@@ -92,3 +92,18 @@ tasks.register<Test>("unitTest") {
         excludeTestsMatching("*E2ETest")
     }
 }
+
+// Counterpart to unitTest: only the tests that need a Docker daemon, so CI does not
+// re-run the unit tests in the integration stage.
+tasks.register<Test>("integrationTest") {
+    description = "Runs only the tests that require Docker (Testcontainers)."
+    group = "verification"
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+
+    filter {
+        includeTestsMatching("*IT")
+        includeTestsMatching("*E2ETest")
+    }
+}
