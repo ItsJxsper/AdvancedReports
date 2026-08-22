@@ -14,10 +14,10 @@ concurrency:
   group: pr-ci-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# settings.gradle.kts und build.gradle.kts lesen genau diese beiden Variablen
+# GITHUB_ACTOR setzt GitHub Actions selbst - nur das Token muss explizit gesetzt werden,
+# damit settings.gradle.kts und build.gradle.kts sich bei GitHub Packages anmelden koennen
 env:
-  actor: ${{ github.actor }}
-  token: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   build-and-unit-test:
