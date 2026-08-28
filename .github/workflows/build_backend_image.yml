@@ -26,8 +26,51 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Erkannte Version: $VERSION"
 
+  # Ein backend-v* Tag hat bisher ohne einen einzigen Test ein Image nach GHCR geschoben
+  test:
+    name: Unit-, Integrations- und E2E-Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: JDK 25 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit-Tests (ohne Docker)
+        run: ./gradlew :backend:unitTest --stacktrace
+
+      - name: Docker-Daemon prüfen
+        run: docker info
+
+      - name: Integrations- und E2E-Tests (Testcontainers)
+        run: ./gradlew :backend:integrationTest --stacktrace
+
+      - name: Testberichte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-test-reports
+          path: |
+            backend/build/reports/tests/
+            backend/build/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
   build-and-push:
-    needs: determine-version
+    needs: [determine-version, test]
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.determine-version.outputs.version }}
