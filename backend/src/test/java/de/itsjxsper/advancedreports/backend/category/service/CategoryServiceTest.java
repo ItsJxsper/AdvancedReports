@@ -26,6 +26,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -188,20 +189,21 @@ class CategoryServiceTest {
     class GetCategory {
 
         @Test
-        @DisplayName("liefert eine Kategorie mit Reports zurück")
+        @DisplayName("liefert eine Kategorie ohne den Report-Graphen zurück")
         void shouldReturnCategory() {
-            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
             when(categoryMapper.toDto(categoryEntity)).thenReturn(categoryDto);
 
             CategoryDto result = categoryService.getCategory(1L);
 
             assertThat(result).isEqualTo(categoryDto);
+            verify(categoryRepository, never()).findWithReportsById(anyLong());
         }
 
         @Test
         @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
         void shouldThrowWhenNotFound() {
-            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
+            when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.getCategory(1L))
                     .isInstanceOf(CategoryNotFoundException.class);

@@ -6,6 +6,7 @@ import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFou
 import de.itsjxsper.advancedreports.backend.discord.mapper.DiscordPlayerMapper;
 import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
 import de.itsjxsper.advancedreports.backend.player.data.repository.PlayerRepository;
+import de.itsjxsper.advancedreports.backend.player.exception.PlayerNotFoundException;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,12 +77,12 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft DiscordUserNotFoundException, wenn der Minecraft-Spieler nicht existiert")
+        @DisplayName("wirft PlayerNotFoundException, wenn der Minecraft-Spieler nicht existiert")
         void shouldThrowWhenPlayerMissing() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> discordPlayerService.createDiscordPlayer(discordPlayerDto))
-                    .isInstanceOf(DiscordUserNotFoundException.class)
+                    .isInstanceOf(PlayerNotFoundException.class)
                     .hasMessageContaining(PLAYER_UUID.toString());
 
             verify(discordPlayerRepository, never()).save(any());

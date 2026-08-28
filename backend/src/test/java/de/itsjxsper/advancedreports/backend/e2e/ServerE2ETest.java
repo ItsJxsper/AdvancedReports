@@ -21,31 +21,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * End-to-end coverage for the server endpoints.
  * <p>
- * Registration via REST is broken in two independent ways (see {@code Registration} below), so the
- * read and delete tests seed their server through SQL. That keeps those paths under test instead of
- * hiding them behind the registration defect.
+ * The read and delete tests still seed their server through SQL: deletion is broken independently
+ * of registration (see {@code Loeschen} below), so seeding via REST would tie those tests to a
+ * defect they are not about.
  */
 @DisplayName("E2E: Server")
 class ServerE2ETest extends AbstractE2ETest {
 
-    private static final String REQUEST_BODY_BUG =
-            "BUG: ServerController#createServer (server/controller/ServerController.java:24) deklariert "
-                    + "'ServerDto serverDto' ohne @RequestBody. Spring MVC bindet den Parameter daher "
-                    + "als Model-Attribute und verwirft den JSON-Body komplett; der Service bekommt ein "
-                    + "DTO mit lauter null-Feldern und laeuft in die NOT-NULL-Spalten von server_entity. "
-                    + "Der Umweg ueber Query-Parameter scheitert an einem zweiten Problem: fuer "
-                    + "ServerDto#ipAddress (java.net.InetAddress) ist kein String-Converter registriert, "
-                    + "Spring meldet 'no matching editors or conversion strategy found'. Damit ist POST "
-                    + "/api/v1/servers auf keinem Weg benutzbar. Dasselbe @RequestBody fehlt an "
-                    + "#updateServer (Zeile 66), dort fehlt zusaetzlich das @RateLimited an #createServer. "
-                    + "Fix: @RequestBody ergaenzen - Jackson deserialisiert InetAddress von Haus aus.";
 
     @Nested
     @DisplayName("Registrierung")
     class Registration {
 
         @Test
-        @Disabled(REQUEST_BODY_BUG)
         @DisplayName("registriert einen Server über einen JSON-Body")
         void shouldCreateServerFromJsonBody() {
             UUID serverUuid = UUID.randomUUID();
@@ -57,44 +45,11 @@ class ServerE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ServerDto.class);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody().serverUUID()).isEqualTo(serverUuid);
             assertThat(response.getBody().port()).isEqualTo(25565);
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass ein JSON-Body verworfen wird und die Anfrage scheitert")
-        void shouldCurrentlyFailWithJsonBody() {
-            ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/servers")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(TestDataFactory.serverDto(UUID.randomUUID()))
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            // Der Body wird ignoriert, das leere DTO verletzt die NOT-NULL-Spalten. Seit der
-            // GlobalExceptionHandler von ResponseEntityExceptionHandler ableitet und
-            // DataIntegrityViolationException abbildet, kommt daraus 409 statt 500 - der Bug
-            // selbst (fehlendes @RequestBody) besteht unveraendert weiter.
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.CONFLICT);
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass auch Query-Parameter an der IP-Konvertierung scheitern")
-        void shouldCurrentlyFailWithQueryParameters() {
-            ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/servers?serverUUID={uuid}&ipAddress=127.0.0.1&port=25565",
-                            UUID.randomUUID())
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            // "Failed to convert value of type 'java.lang.String' to required type
-            // 'java.net.InetAddress'". Der Bindungsfehler laeuft jetzt ueber
-            // ResponseEntityExceptionHandler und wird als 400 gemeldet statt als 500; der fehlende
-            // String-nach-InetAddress-Converter ist damit unveraendert vorhanden.
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        }
     }
 
     @Nested
@@ -102,22 +57,6 @@ class ServerE2ETest extends AbstractE2ETest {
     class Reading {
 
         @Test
-        @Disabled("""
-                BUG: ServerMapper bildet serverUuid nicht auf serverUUID ab. Die Entity heisst \
-                ServerEntity#serverUuid, das DTO ServerDto#serverUUID - MapStruct findet die \
-                Zuordnung wegen des zweiten Grossbuchstabens nicht, und \
-                unmappedTargetPolicy = ReportingPolicy.IGNORE unterdrueckt die Warnung. Der \
-                generierte ServerMapperImpl#toDto enthaelt daher wortwoertlich
-                
-                  UUID serverUUID = null;
-                  ServerDto serverDto = new ServerDto( serverUUID, ipAddress, port );
-                
-                Jede Server-Antwort liefert also serverUUID: null. Das trifft den Kern des \
-                Mehrserver-Designs: Clients erfahren die UUID ihres Servers nie und koennen damit \
-                weder den X-Server-UUID-Header setzen noch einen Report einem Server zuordnen. \
-                Fix: @Mapping(source = "serverUuid", target = "serverUUID") ergaenzen (und die \
-                Gegenrichtung ebenso) oder unmappedTargetPolicy auf ERROR stellen, damit so etwas \
-                beim Bauen auffaellt. Siehe server/mapper/ServerMapper.java.""")
         @DisplayName("liefert einen Server über seine UUID")
         void shouldReturnServerByUuid() {
             UUID serverUuid = DbFixtures.insertServer(dataSource);
@@ -131,23 +70,6 @@ class ServerE2ETest extends AbstractE2ETest {
             assertThat(response.getBody().serverUUID()).isEqualTo(serverUuid);
             assertThat(response.getBody().port()).isEqualTo(25565);
             assertThat(response.getBody().ipAddress()).isEqualTo(TestDataFactory.loopback());
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass serverUUID in der Antwort immer null ist")
-        void shouldCurrentlyReturnNullServerUuid() {
-            UUID serverUuid = DbFixtures.insertServer(dataSource);
-
-            ResponseEntity<ServerDto> response = client().get()
-                    .uri("/api/v1/servers/{uuid}", serverUuid)
-                    .retrieve()
-                    .toEntity(ServerDto.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            // IP und Port kommen an, nur die UUID fällt beim Mapping heraus.
-            assertThat(response.getBody().ipAddress()).isEqualTo(TestDataFactory.loopback());
-            assertThat(response.getBody().port()).isEqualTo(25565);
-            assertThat(response.getBody().serverUUID()).isNull();
         }
 
         @Test
