@@ -4,6 +4,7 @@ import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -102,7 +103,7 @@ class ReportMapperTest {
         @Test
         @DisplayName("bildet die skalaren Felder ab und laesst die Assoziationen dem Service")
         void shouldMapScalarsOnly() {
-            ReportUpdateDto dto = TestDataFactory.reportUpdateDto(
+            ReportCreateDto dto = TestDataFactory.reportCreateDto(
                     REPORTER_UUID, REPORTED_UUID, 7L, SERVER_UUID, HANDLER_UUID);
 
             ReportsEntity result = mapper.toEntity(dto);
@@ -124,7 +125,7 @@ class ReportMapperTest {
         @Test
         @DisplayName("laesst eine optionale Assoziation aus, wenn ihre Id null ist")
         void shouldSkipOptionalAssociations() {
-            ReportUpdateDto dto = new ReportUpdateDto(REPORTER_UUID, REPORTED_UUID, 7L, "Grund",
+            ReportCreateDto dto = new ReportCreateDto(REPORTER_UUID, REPORTED_UUID, 7L, "Grund",
                     null, "world:0:0:0", ReportStatus.PENDING, HANDLER_UUID, null, null);
 
             ReportsEntity result = mapper.toEntity(dto);
