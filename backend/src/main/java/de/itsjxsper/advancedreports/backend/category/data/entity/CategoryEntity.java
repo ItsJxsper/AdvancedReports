@@ -31,7 +31,10 @@ public class CategoryEntity {
     @Column(name = "cooldown_sec")
     @JdbcTypeCode(SqlTypes.INTEGER)
     private Long cooldownSec;
-    @OneToMany(mappedBy = "categoryEntity", orphanRemoval = true)
+    // Kein orphanRemoval: es haette das Loeschen einer Kategorie zu einem stillen Loeschen aller
+    // zugehoerigen Reports gemacht. reports_entity.category_entity_id ist NOT NULL, ein Abhaengen
+    // ist also nicht moeglich - CategoryService lehnt das Loeschen stattdessen mit 409 ab.
+    @OneToMany(mappedBy = "categoryEntity")
     private Set<ReportsEntity> reportsEntities = new LinkedHashSet<>();
 
 }

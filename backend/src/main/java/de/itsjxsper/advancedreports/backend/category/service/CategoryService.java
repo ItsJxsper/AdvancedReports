@@ -2,6 +2,7 @@ package de.itsjxsper.advancedreports.backend.category.service;
 
 import de.itsjxsper.advancedreports.backend.category.data.repository.CategoryRepository;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyExistException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryInUseException;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
 import de.itsjxsper.advancedreports.backend.category.mapper.CategoryMapper;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
@@ -11,17 +12,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
 
+    @Transactional
     public CategoryDto createCategory(CategoryDto categoryDto) {
         log.debug("Creating category with name={}", categoryDto.name());
         this.categoryRepository.findByName(categoryDto.name())
@@ -37,6 +41,7 @@ public class CategoryService {
         return this.categoryMapper.toDto(savedEntity);
     }
 
+    @Transactional
     public CategoryDto updateCategory(CategoryDto categoryDto) {
         log.debug("Updating category with id={}", categoryDto);
         var categoryEntity = this.categoryRepository.findById(categoryDto.id())
@@ -55,10 +60,19 @@ public class CategoryService {
         return this.categoryMapper.toDto(savedEntity);
     }
 
+    @Transactional
     public void deleteCategory(Long categoryId) {
         log.debug("Deleting category with id={}", categoryId);
-        var categoryEntity = this.categoryRepository.findById(categoryId)
+        var categoryEntity = this.categoryRepository.findWithReportsById(categoryId)
                 .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+
+        // reports_entity.category_entity_id ist NOT NULL - abhaengen geht also nicht. Frueher hat
+        // orphanRemoval die Reports einfach mitgeloescht, und zwar stillschweigend mit 204.
+        int reportCount = categoryEntity.getReportsEntities().size();
+        if (reportCount > 0) {
+            throw new CategoryInUseException(categoryId, reportCount);
+        }
+
         this.categoryRepository.delete(categoryEntity);
         log.debug("Deleted category with id={}", categoryId);
     }
