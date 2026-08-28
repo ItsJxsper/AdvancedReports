@@ -29,16 +29,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("E2E: Discord-Verknüpfung")
 class DiscordPlayerE2ETest extends AbstractE2ETest {
 
-    private static final String TABLE_MISSING_BUG = """
-            BUG (blockierend, ganze Domain): Die Tabelle discord_player_entity existiert nicht. \
-            DiscordPlayerEntity#discordUserId kombiniert @JdbcTypeCode(SqlTypes.LONG32NVARCHAR) - die \
-            Spalte wird damit zu 'text' - mit @Max(18), woraus Hibernate einen numerischen CHECK \
-            generiert. Postgres lehnt das DDL ab: 'ERROR: operator does not exist: text <= integer'. \
-            Jeder schreibende Zugriff endet daher in 'relation "discord_player_entity" does not exist' \
-            und nach aussen in 500. Zusaetzlich wuerde @Max(18) jede echte, 17-19-stellige \
-            Discord-Snowflake bereits an der Bean Validation abweisen. Fix: @JdbcTypeCode entfernen \
-            und @Max(18) durch @Digits(integer = 19, fraction = 0) ersetzen. Siehe \
-            discord/data/entity/DiscordPlayerEntity.java:18-21.""";
+    private static final String READ_ONLY_TX_BUG = """
+            BUG (blockierend, ganze Domain): DiscordPlayerService ist auf Klassenebene mit \
+            @Transactional(readOnly = true) annotiert, und keine der schreibenden Methoden \
+            ueberschreibt das - weder #createDiscordPlayer noch #updateDiscordPlayer noch die \
+            beiden delete-Methoden. SimpleJpaRepository tritt der bestehenden read-only-Transaktion \
+            bei, Hibernate setzt darin FlushMode.MANUAL, und das INSERT/UPDATE/DELETE wird nie \
+            geflusht. Der Endpunkt antwortet mit 201 und einem vollstaendig befuellten DTO, \
+            gespeichert wird aber nichts. Fix: @Transactional an den schreibenden Methoden \
+            ergaenzen. Siehe discord/service/DiscordPlayerService.java:19.""";
 
     private DiscordPlayerDto linkPayload(UUID playerUuid, Long discordUserId) {
         return new DiscordPlayerDto(null, playerUuid, discordUserId);
@@ -49,7 +48,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
     class Linking {
 
         @Test
-        @Disabled(TABLE_MISSING_BUG)
+        @Disabled(READ_ONLY_TX_BUG)
         @DisplayName("verknüpft einen Spieler mit einem Discord-Account")
         void shouldLinkPlayer() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -68,7 +67,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @Disabled(TABLE_MISSING_BUG)
+        @Disabled(READ_ONLY_TX_BUG)
         @DisplayName("löst die Verknüpfung über die Spieler-UUID auf")
         void shouldResolveByPlayerUuid() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -90,7 +89,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @Disabled(TABLE_MISSING_BUG)
+        @Disabled(READ_ONLY_TX_BUG)
         @DisplayName("löscht die Verknüpfung, ohne den Spieler zu entfernen")
         void shouldDeleteLinkOnly() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -118,19 +117,28 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass das Verknüpfen aktuell mit 500 scheitert")
-        void shouldCurrentlyFailToLink() {
+        @DisplayName("dokumentiert, dass das Verknüpfen 201 meldet, aber nichts speichert")
+        void shouldCurrentlyReportSuccessWithoutPersisting() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
 
-            ResponseEntity<ApiErrorResponse> response = client().post()
+            ResponseEntity<DiscordPlayerDto> created = client().post()
                     .uri("/api/v1/discord-players")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(linkPayload(player.playerUUID(), 17L))
+                    .body(linkPayload(player.playerUUID(), 217476470391308288L))
                     .retrieve()
-                    .toEntity(ApiErrorResponse.class);
+                    .toEntity(DiscordPlayerDto.class);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
+            // Die Tabelle entsteht inzwischen, das INSERT wird aber in der read-only-Transaktion
+            // nie geflusht: der Aufrufer bekommt ein vollstaendiges DTO und glaubt an Erfolg.
+            assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+            assertThat(client().get()
+                    .uri("/api/v1/discord-players/player/{uuid}", player.playerUUID())
+                    .retrieve()
+                    .onStatus(status -> status.value() == 404, (req, res) -> {
+                    })
+                    .toBodilessEntity()
+                    .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         }
     }
 

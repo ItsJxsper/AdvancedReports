@@ -79,6 +79,12 @@ public class ServerService {
 
 
     public long countReportsForServer(UUID serverUUID) {
+        // Ohne Existenzpruefung liefert eine unbekannte UUID 0 - nicht unterscheidbar von einem
+        // registrierten Server ohne Reports.
+        if (!this.serverRepository.existsById(serverUUID)) {
+            throw new ServerNotFoundException(serverUUID);
+        }
+
         return this.serverRepository.countReportsByServerUuid(serverUUID);
     }
 

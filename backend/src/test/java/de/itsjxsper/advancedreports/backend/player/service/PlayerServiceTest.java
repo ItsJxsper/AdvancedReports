@@ -114,11 +114,6 @@ class PlayerServiceTest {
         }
 
         @Test
-        @Disabled("BUG: PlayerService#updatePlayer (player/service/PlayerService.java:47) ruft "
-                + "playerName().orElse(null) und ueberschreibt den Namen daher mit null, sobald das "
-                + "Optional leer ist. Die Spalte player_name ist nullable = false, ein Teil-Update "
-                + "ohne Namen scheitert also an der Datenbank. Erwartet wird, dass ein leeres "
-                + "Optional den bestehenden Namen unangetastet laesst.")
         @DisplayName("lässt den bestehenden Namen unverändert, wenn kein Name mitgeschickt wird")
         void shouldKeepExistingNameWhenNameAbsent() {
             PlayerUpdateDTO dto = new PlayerUpdateDTO(PLAYER_UUID, Optional.empty());

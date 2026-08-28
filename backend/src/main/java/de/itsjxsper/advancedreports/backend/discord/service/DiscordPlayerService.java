@@ -5,6 +5,7 @@ import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFou
 import de.itsjxsper.advancedreports.backend.discord.mapper.DiscordPlayerMapper;
 import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
 import de.itsjxsper.advancedreports.backend.player.data.repository.PlayerRepository;
+import de.itsjxsper.advancedreports.backend.player.exception.PlayerNotFoundException;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,9 @@ public class DiscordPlayerService {
         log.debug("Creating DiscordPlayer with data: {}", discordPlayerDto);
 
         PlayerEntity playerEntity = this.playerRepository.findByPlayerUuid(discordPlayerDto.playerEntityPlayerUUID())
-                .orElseThrow(() -> new DiscordUserNotFoundException(discordPlayerDto.playerEntityPlayerUUID()));
+                // Fehlt der Minecraft-Spieler, ist das kein Discord-Fehler - PlayerNotFoundException
+                // existiert genau dafuer und bildet auf PLAYER_NOT_FOUND ab.
+                .orElseThrow(() -> new PlayerNotFoundException(discordPlayerDto.playerEntityPlayerUUID()));
 
         var discordPlayerEntity = this.discordPlayerMapper.toEntity(discordPlayerDto);
         discordPlayerEntity.setPlayerEntity(playerEntity);
