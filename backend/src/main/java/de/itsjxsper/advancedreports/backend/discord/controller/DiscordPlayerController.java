@@ -87,7 +87,12 @@ public class DiscordPlayerController {
             @PathVariable Long discordPlayerId,
             @Valid @RequestBody DiscordPlayerDto discordPlayerDto) {
         log.debug("Updating Discord Player with id={}", discordPlayerId);
-        DiscordPlayerDto updatedPlayer = this.discordPlayerService.updateDiscordPlayer(discordPlayerDto);
+        // Der Pfad ist massgeblich: bisher wurde discordPlayerId ignoriert und das Ziel allein
+        // aus discordPlayerDto.id() aufgeloest - Pfad und Body konnten also auseinanderlaufen.
+        DiscordPlayerDto target = new DiscordPlayerDto(
+                discordPlayerId, discordPlayerDto.playerEntityPlayerUUID(), discordPlayerDto.discordUserId());
+
+        DiscordPlayerDto updatedPlayer = this.discordPlayerService.updateDiscordPlayer(target);
         return ResponseEntity.ok(updatedPlayer);
     }
 

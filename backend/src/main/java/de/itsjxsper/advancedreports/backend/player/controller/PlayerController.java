@@ -4,6 +4,7 @@ import de.itsjxsper.advancedreports.backend.player.service.PlayerService;
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
 import de.itsjxsper.advancedreports.common.model.player.PlayerUpdateDTO;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -59,7 +60,7 @@ public class PlayerController {
             @ApiResponse(responseCode = "409", description = "Player already exists"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<PlayerDTO> createPlayer(@RequestBody PlayerUpdateDTO playerUpdateDTO) {
+    public ResponseEntity<PlayerDTO> createPlayer(@Valid @RequestBody PlayerUpdateDTO playerUpdateDTO) {
         log.debug("Creating player with uuid={} and name={}", playerUpdateDTO.playerUuid(), playerUpdateDTO.playerName());
         PlayerDTO createdPlayer = this.playerService.createPlayer(playerUpdateDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdPlayer);
@@ -74,7 +75,7 @@ public class PlayerController {
             @ApiResponse(responseCode = "400", description = "Invalid input"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<PlayerDTO> updatePlayer(@RequestBody PlayerUpdateDTO playerUpdateDTO) {
+    public ResponseEntity<PlayerDTO> updatePlayer(@Valid @RequestBody PlayerUpdateDTO playerUpdateDTO) {
         log.debug("Updating player with uuid={} and name={}", playerUpdateDTO.playerUuid(), playerUpdateDTO.playerName());
         PlayerDTO updatedPlayer = this.playerService.updatePlayer(playerUpdateDTO);
         return ResponseEntity.ok(updatedPlayer);

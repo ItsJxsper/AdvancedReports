@@ -65,7 +65,9 @@ public class CategoryService {
 
     public CategoryDto getCategory(Long categoryId) {
         log.debug("Fetching category with id={}", categoryId);
-        return this.categoryRepository.findWithReportsById(categoryId)
+        // findById statt findWithReportsById: CategoryDto hat kein Reports-Feld, der EntityGraph hat
+        // hier also nur den kompletten Report-Graph der Kategorie mitgeladen und wieder verworfen.
+        return this.categoryRepository.findById(categoryId)
                 .map(this.categoryMapper::toDto)
                 .orElseThrow(() -> new CategoryNotFoundException(categoryId));
     }

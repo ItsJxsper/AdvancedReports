@@ -181,9 +181,21 @@ class ServerServiceTest {
         @Test
         @DisplayName("gibt die Anzahl der Reports eines Servers zurück")
         void shouldCountReportsForServer() {
+            when(serverRepository.existsById(SERVER_UUID)).thenReturn(true);
             when(serverRepository.countReportsByServerUuid(SERVER_UUID)).thenReturn(5L);
 
             assertThat(serverService.countReportsForServer(SERVER_UUID)).isEqualTo(5L);
+        }
+
+        @Test
+        @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
+        void shouldThrowWhenCountingReportsForUnknownServer() {
+            when(serverRepository.existsById(SERVER_UUID)).thenReturn(false);
+
+            assertThatThrownBy(() -> serverService.countReportsForServer(SERVER_UUID))
+                    .isInstanceOf(ServerNotFoundException.class);
+
+            verify(serverRepository, never()).countReportsByServerUuid(any());
         }
     }
 }
