@@ -44,39 +44,19 @@ class ServerControllerTest {
     class CreateServer {
 
         @Test
-        @Disabled("BUG: ServerController#createServer (server/controller/ServerController.java:24) "
-                + "deklariert den Parameter als 'ServerDto serverDto' ohne @RequestBody. Spring MVC "
-                + "behandelt ihn deshalb als Model-Attribute und bindet ihn aus Query-Parametern statt "
-                + "aus dem JSON-Body - ein gesendeter Body wird komplett ignoriert und der Service "
-                + "bekommt ein DTO mit lauter null-Feldern. Dasselbe gilt fuer #updateServer "
-                + "(Zeile 66). Zusaetzlich fehlt an POST /servers das @RateLimited, das jeder andere "
-                + "Endpunkt dieses Controllers traegt.")
-        @DisplayName("übernimmt den JSON-Body und liefert 200 mit dem registrierten Server")
+        @DisplayName("übernimmt den JSON-Body und liefert 201 mit dem registrierten Server")
         void shouldCreateServerFromJsonBody() throws Exception {
             when(serverService.createServer(any())).thenReturn(serverDto);
 
             mockMvc.perform(post("/api/v1/servers")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(serverDto)))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.serverUUID").value(SERVER_UUID.toString()));
 
             verify(serverService).createServer(serverDto);
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass der JSON-Body aktuell verworfen wird")
-        void shouldCurrentlyIgnoreJsonBody() throws Exception {
-            when(serverService.createServer(any())).thenReturn(serverDto);
-
-            mockMvc.perform(post("/api/v1/servers")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(serverDto)))
-                    .andExpect(status().isOk());
-
-            // Ohne @RequestBody kommt ein leeres DTO an, nicht das gesendete.
-            verify(serverService).createServer(new ServerDto(null, null, null));
-        }
     }
 
     @Nested

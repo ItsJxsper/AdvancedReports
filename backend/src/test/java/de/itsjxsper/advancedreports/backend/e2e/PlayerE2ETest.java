@@ -144,11 +144,6 @@ class PlayerE2ETest extends AbstractE2ETest {
     class PartialUpdate {
 
         @Test
-        @Disabled("BUG: PlayerService#updatePlayer (player/service/PlayerService.java:47) ruft "
-                + "playerName().orElse(null) und ueberschreibt den Namen daher mit null, sobald das "
-                + "Optional leer ist. Die Spalte player_name ist nullable = false, das Update "
-                + "scheitert also an der Datenbank und wird als 500 gemeldet. Erwartet wird, dass ein "
-                + "fehlender Name den bestehenden unangetastet laesst.")
         @DisplayName("behält den bestehenden Namen, wenn kein Name mitgeschickt wird")
         void shouldKeepNameWhenAbsent() {
             UUID playerUuid = UUID.randomUUID();
@@ -166,25 +161,5 @@ class PlayerE2ETest extends AbstractE2ETest {
             assertThat(response.getBody().playerName()).isEqualTo("Notch");
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass ein Update ohne Namen aktuell mit 409 scheitert")
-        void shouldCurrentlyFailWhenNameAbsent() {
-            UUID playerUuid = UUID.randomUUID();
-            ApiFixtures.createPlayer(client(), playerUuid, "Notch");
-
-            ResponseEntity<ApiErrorResponse> response = client().patch()
-                    .uri("/api/v1/player")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new de.itsjxsper.advancedreports.common.model.player.PlayerUpdateDTO(
-                            playerUuid, Optional.empty()))
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            // orElse(null) schreibt null in die NOT-NULL-Spalte player_name. Das ist jetzt eine
-            // gemeldete DataIntegrityViolationException (409) statt eines 500 - PATCH loescht den
-            // Namen aber weiterhin, statt das Feld auszulassen.
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.CONFLICT);
-        }
     }
 }
