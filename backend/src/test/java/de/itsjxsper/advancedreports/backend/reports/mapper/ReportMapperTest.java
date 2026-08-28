@@ -4,6 +4,7 @@ import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -45,6 +46,9 @@ class ReportMapperTest {
 
         entity = TestDataFactory.report(reporter, reported, handler, category, server);
         entity.setId(1L);
+        // Frueher hat die Entity ihr createdAt selbst im Feldinitialisierer gesetzt; das uebernimmt
+        // jetzt @CreationTimestamp beim Persistieren, also muss die Fixture es selbst setzen.
+        entity.setCreatedAt(java.time.Instant.now());
 
         var screenshot = TestDataFactory.screenshot("screenshots/2026-01-01/abc-screenshot.png");
         screenshot.setId(9L);
@@ -97,57 +101,37 @@ class ReportMapperTest {
     class ToEntity {
 
         @Test
-        @DisplayName("baut aus flachen UUIDs verschachtelte Assoziationen auf")
-        void shouldExpandAssociations() {
-            ReportUpdateDto dto = TestDataFactory.reportUpdateDto(
+        @DisplayName("bildet die skalaren Felder ab und laesst die Assoziationen dem Service")
+        void shouldMapScalarsOnly() {
+            ReportCreateDto dto = TestDataFactory.reportCreateDto(
                     REPORTER_UUID, REPORTED_UUID, 7L, SERVER_UUID, HANDLER_UUID);
 
             ReportsEntity result = mapper.toEntity(dto);
 
-            assertThat(result.getReporter().getPlayerUuid()).isEqualTo(REPORTER_UUID);
-            assertThat(result.getReported().getPlayerUuid()).isEqualTo(REPORTED_UUID);
-            assertThat(result.getHandledBy().getPlayerUuid()).isEqualTo(HANDLER_UUID);
-            assertThat(result.getCategoryEntity().getId()).isEqualTo(7L);
-            assertThat(result.getServer().getServerUuid()).isEqualTo(SERVER_UUID);
             assertThat(result.getReason()).isEqualTo("Verdacht auf Fliegen");
             assertThat(result.getLocation()).isEqualTo("world:100:64:-200");
             assertThat(result.getReportStatus()).isEqualTo(ReportStatus.PENDING);
+
+            // Attrappen mit gesetzter Id waren transient und liessen save() scheitern; die
+            // Assoziationen werden ausschliesslich in ReportService aus der Datenbank geladen.
+            assertThat(result.getReporter()).isNull();
+            assertThat(result.getReported()).isNull();
+            assertThat(result.getHandledBy()).isNull();
+            assertThat(result.getCategoryEntity()).isNull();
+            assertThat(result.getServer()).isNull();
+            assertThat(result.getScreenshotEntity()).isNull();
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("BUG: Der generierte ReportMapperImpl#toEntity erzeugt fuer "
-                + "jede verschachtelte Assoziation bedingungslos ein neues Objekt und prueft nur das "
-                + "aeussere DTO auf null. Ein ReportUpdateDto ohne serverUUID und ohne screenshotId "
-                + "liefert daher eine ServerEntity mit serverUuid = null und eine ScreenshotEntity "
-                + "mit id = null statt null. Beide sind transient und werden von @ManyToOne ohne "
-                + "Cascade referenziert, sodass reportRepository.save() daran scheitert - POST "
-                + "/api/v1/reports ohne optionale Referenzen ist damit nicht benutzbar. Fix: die "
-                + "Assoziationen im Service aufloesen statt sie im Mapper aufzubauen (siehe "
-                + "reports/mapper/ReportMapper.java:22-37).")
-        @DisplayName("lässt eine optionale Assoziation aus, wenn ihre Id null ist")
+        @DisplayName("laesst eine optionale Assoziation aus, wenn ihre Id null ist")
         void shouldSkipOptionalAssociations() {
-            ReportUpdateDto dto = new ReportUpdateDto(REPORTER_UUID, REPORTED_UUID, 7L, "Grund",
+            ReportCreateDto dto = new ReportCreateDto(REPORTER_UUID, REPORTED_UUID, 7L, "Grund",
                     null, "world:0:0:0", ReportStatus.PENDING, HANDLER_UUID, null, null);
 
             ReportsEntity result = mapper.toEntity(dto);
 
             assertThat(result.getServer()).isNull();
             assertThat(result.getScreenshotEntity()).isNull();
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass optionale Assoziationen aktuell als leere Objekte entstehen")
-        void shouldCurrentlyFabricateEmptyAssociations() {
-            ReportUpdateDto dto = new ReportUpdateDto(REPORTER_UUID, REPORTED_UUID, 7L, "Grund",
-                    null, "world:0:0:0", ReportStatus.PENDING, HANDLER_UUID, null, null);
-
-            ReportsEntity result = mapper.toEntity(dto);
-
-            // Ist-Verhalten, festgehalten damit ein Fix des obigen Bugs hier sichtbar fehlschlägt.
-            assertThat(result.getServer()).isNotNull();
-            assertThat(result.getServer().getServerUuid()).isNull();
-            assertThat(result.getScreenshotEntity()).isNotNull();
-            assertThat(result.getScreenshotEntity().getId()).isNull();
         }
     }
 
@@ -173,14 +157,18 @@ class ReportMapperTest {
         }
 
         @Test
-        @DisplayName("aktualisiert die Kategorie, wenn eine neue categoryId übergeben wird")
-        void shouldUpdateCategory() {
-            ReportUpdateDto dto = new ReportUpdateDto(null, null, 42L, null, null, null,
+        @DisplayName("laesst die geladenen Assoziationen unangetastet")
+        void shouldNotTouchManagedAssociations() {
+            ReportUpdateDto dto = new ReportUpdateDto(REPORTER_UUID, null, 42L, null, null, null,
                     null, null, null, null);
 
             ReportsEntity result = mapper.partialUpdate(dto, entity);
 
-            assertThat(result.getCategoryEntity().getId()).isEqualTo(42L);
+            // Vorher schrieb der Mapper in die *verwaltete* PlayerEntity und haette damit deren
+            // Primaerschluessel geaendert; die Kategorie ersetzte er durch eine Attrappe.
+            assertThat(result.getReporter().getPlayerUuid()).isEqualTo(REPORTER_UUID);
+            assertThat(result.getCategoryEntity().getId()).isEqualTo(7L);
         }
+
     }
 }

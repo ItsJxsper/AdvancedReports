@@ -14,7 +14,7 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "player", schema = "advancedreports")
+@Table(name = "player")
 public class PlayerEntity {
 
     @Id

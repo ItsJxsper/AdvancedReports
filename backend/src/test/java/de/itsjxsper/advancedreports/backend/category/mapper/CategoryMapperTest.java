@@ -83,12 +83,6 @@ class CategoryMapperTest {
     class ActiveFlag {
 
         @Test
-        @Disabled("BUG: CategoryEntity#active ist als 'private final Boolean active = true' deklariert "
-                + "(category/data/entity/CategoryEntity.java:19). Lombok kann fuer ein final-Feld "
-                + "keinen Setter erzeugen, also kann MapStruct es nicht schreiben - eine Kategorie ist "
-                + "dauerhaft aktiv. Damit ist CategoryDto#active effektiv read-only und "
-                + "CategoryRepository#findCategoriesWithActiveReports filtert auf eine Bedingung, die "
-                + "immer wahr ist. Erwartet wird, dass sich active ueber die API abschalten laesst.")
         @DisplayName("übernimmt active = false aus dem DTO")
         void shouldMapActiveFalse() {
             CategoryDto dto = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen", 60L, false);
@@ -98,13 +92,5 @@ class CategoryMapperTest {
             assertThat(entity.getActive()).isFalse();
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass active aktuell unveränderlich true bleibt")
-        void shouldCurrentlyAlwaysBeActive() {
-            CategoryDto dto = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen", 60L, false);
-
-            // Ist-Verhalten, festgehalten damit ein Fix des obigen Bugs hier sichtbar fehlschlägt.
-            assertThat(mapper.toEntity(dto).getActive()).isTrue();
-        }
     }
 }

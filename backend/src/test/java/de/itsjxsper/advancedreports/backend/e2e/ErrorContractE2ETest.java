@@ -93,12 +93,6 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("BUG: GET /api/v1/discord-players/{id} liefert 500 statt 404, "
-                + "weil die Tabelle discord_player_entity nicht existiert - Hibernates generiertes DDL "
-                + "wird von Postgres abgelehnt ('operator does not exist: text <= integer'). Schon das "
-                + "findById scheitert mit einer SQLGrammarException, bevor die "
-                + "DiscordUserNotFoundException geworfen werden kann. Vollstaendige Analyse im "
-                + "@Disabled von DiscordPlayerRepositoryIT.")
         @DisplayName("eine unbekannte Discord-Verknüpfung wird clientseitig als NotFound erkannt")
         void shouldParseDiscordUserNotFound() {
             ApiException exception = callAndParse("/api/v1/discord-players/9999");
