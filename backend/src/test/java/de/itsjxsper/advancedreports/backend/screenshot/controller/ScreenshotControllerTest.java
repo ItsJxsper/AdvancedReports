@@ -1,6 +1,7 @@
 package de.itsjxsper.advancedreports.backend.screenshot.controller;
 
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotStorageException;
+import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
 import de.itsjxsper.advancedreports.backend.screenshot.service.ScreenshotService;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
@@ -125,9 +126,9 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Service null zurückgibt")
-        void shouldReturnNotFoundOnNull() throws Exception {
-            when(screenshotService.getScreenshot(99L)).thenReturn(null);
+        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND für eine unbekannte ID")
+        void shouldReturnNotFound() throws Exception {
+            when(screenshotService.getScreenshot(99L)).thenThrow(new ScreenshotNotFoundException(99L));
 
             mockMvc.perform(get("/api/v1/screenshots/99"))
                     .andExpect(status().isNotFound())
@@ -171,23 +172,13 @@ class ScreenshotControllerTest {
         @Test
         @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn keine Metadaten existieren")
         void shouldReturnNotFoundWithoutMetadata() throws Exception {
-            when(screenshotService.getScreenshot(99L)).thenReturn(null);
+            when(screenshotService.getScreenshot(99L)).thenThrow(new ScreenshotNotFoundException(99L));
 
             mockMvc.perform(get("/api/v1/screenshots/99/download"))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value("SCREENSHOT_NOT_FOUND"));
         }
 
-        @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Storage keine Bytes liefert")
-        void shouldReturnNotFoundWithoutContent() throws Exception {
-            when(screenshotService.getScreenshot(9L)).thenReturn(screenshotDto);
-            when(screenshotService.downloadScreenshot(9L)).thenReturn(null);
-
-            mockMvc.perform(get("/api/v1/screenshots/9/download"))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value("SCREENSHOT_NOT_FOUND"));
-        }
     }
 
     @Nested
@@ -208,9 +199,9 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Service null zurückgibt")
-        void shouldReturnNotFoundOnNull() throws Exception {
-            when(screenshotService.updateScreenshot(eq(99L), any())).thenReturn(null);
+        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND für eine unbekannte ID")
+        void shouldReturnNotFoundOnUpdate() throws Exception {
+            when(screenshotService.updateScreenshot(eq(99L), any())).thenThrow(new ScreenshotNotFoundException(99L));
 
             mockMvc.perform(patch("/api/v1/screenshots/99")
                             .contentType(MediaType.APPLICATION_JSON)

@@ -1,7 +1,9 @@
 package de.itsjxsper.advancedreports.backend.exceptions;
 
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyExistException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryInUseException;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
+import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordPlayerAlreadyExistException;
 import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFoundException;
 import de.itsjxsper.advancedreports.backend.player.exception.PlayerAlreadyExistException;
 import de.itsjxsper.advancedreports.backend.player.exception.PlayerNotFoundException;
@@ -198,6 +200,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ApiErrorCode.DISCORD_USER_NOT_FOUND, e.getMessage());
     }
 
+    @ExceptionHandler(DiscordPlayerAlreadyExistException.class)
+    public ResponseEntity<ApiErrorResponse> handleDiscordPlayerAlreadyExistException(DiscordPlayerAlreadyExistException e) {
+        log.warn("DiscordPlayerAlreadyExistException: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.CONFLICT, ApiErrorCode.CONFLICT, e.getMessage());
+    }
+
     @ExceptionHandler(CategoryAlreadyExistException.class)
     public ResponseEntity<ApiErrorResponse> handleCategoryAlreadyExistException(CategoryAlreadyExistException e) {
         log.warn("CategoryAlreadyExistException: {}", e.getMessage());
@@ -208,6 +216,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleCategoryNotFoundException(CategoryNotFoundException e) {
         log.warn("CategoryNotFoundException: {}", e.getMessage());
         return buildErrorResponse(HttpStatus.NOT_FOUND, ApiErrorCode.CATEGORY_NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(CategoryInUseException.class)
+    public ResponseEntity<ApiErrorResponse> handleCategoryInUseException(CategoryInUseException e) {
+        log.warn("CategoryInUseException: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.CONFLICT, ApiErrorCode.CONFLICT, e.getMessage());
     }
 
     @ExceptionHandler(ServerNotFoundException.class)

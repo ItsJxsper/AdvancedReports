@@ -11,16 +11,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PlayerService {
 
     private final PlayerRepository playerRepository;
 
+    @Transactional
     public PlayerDTO createPlayer(PlayerUpdateDTO playerUpdateDTO) {
         log.debug("Creating player with uuid={}", playerUpdateDTO.playerUuid());
         this.playerRepository.findByPlayerUuid(playerUpdateDTO.playerUuid())
@@ -41,6 +44,7 @@ public class PlayerService {
         return new PlayerDTO(savedEntity.getPlayerUuid(), savedEntity.getPlayerName());
     }
 
+    @Transactional
     public PlayerDTO updatePlayer(PlayerUpdateDTO playerUpdateDTO) {
         log.debug("Updating player with uuid={}", playerUpdateDTO.playerUuid());
         var playerEntity = this.playerRepository.findByPlayerUuid(playerUpdateDTO.playerUuid())
@@ -57,6 +61,7 @@ public class PlayerService {
         return new PlayerDTO(savedEntity.getPlayerUuid(), savedEntity.getPlayerName());
     }
 
+    @Transactional
     public void deletePlayer(UUID playerUuid) {
         log.debug("Deleting player with uuid={}", playerUuid);
         var playerEntity = this.playerRepository.findByPlayerUuid(playerUuid)

@@ -1,7 +1,6 @@
 package de.itsjxsper.advancedreports.backend.screenshot.controller;
 
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
-import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
 import de.itsjxsper.advancedreports.backend.screenshot.service.ScreenshotService;
 import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDto;
 import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUpdateDto;
@@ -90,11 +89,7 @@ public class ScreenshotController {
     })
     public ResponseEntity<ScreenshotDto> getScreenshot(@PathVariable Long screenshotId) {
         log.debug("Getting screenshot with id={}", screenshotId);
-        ScreenshotDto screenshotDto = this.screenshotService.getScreenshot(screenshotId);
-        if (screenshotDto == null) {
-            throw new ScreenshotNotFoundException(screenshotId);
-        }
-        return ResponseEntity.ok(screenshotDto);
+        return ResponseEntity.ok(this.screenshotService.getScreenshot(screenshotId));
     }
 
     @GetMapping("/{screenshotId}/download")
@@ -109,14 +104,7 @@ public class ScreenshotController {
         log.debug("Downloading screenshot with id={}", screenshotId);
 
         ScreenshotDto screenshotDto = this.screenshotService.getScreenshot(screenshotId);
-        if (screenshotDto == null) {
-            throw new ScreenshotNotFoundException(screenshotId);
-        }
-        byte[] content = this.screenshotService.downloadScreenshot(screenshotId);
-        if (content == null) {
-            throw new ScreenshotNotFoundException(screenshotId);
-        }
-        Resource resource = new ByteArrayResource(content);
+        Resource resource = new ByteArrayResource(this.screenshotService.downloadScreenshot(screenshotId));
 
         String contentType = screenshotDto.contentType() != null && !screenshotDto.contentType().isBlank()
                 ? screenshotDto.contentType()
@@ -146,11 +134,7 @@ public class ScreenshotController {
             @Valid @RequestBody ScreenshotUpdateDto screenshotUpdateDto
     ) {
         log.debug("Updating screenshot with id={}", screenshotId);
-        ScreenshotDto screenshotDto = this.screenshotService.updateScreenshot(screenshotId, screenshotUpdateDto);
-        if (screenshotDto == null) {
-            throw new ScreenshotNotFoundException(screenshotId);
-        }
-        return ResponseEntity.ok(screenshotDto);
+        return ResponseEntity.ok(this.screenshotService.updateScreenshot(screenshotId, screenshotUpdateDto));
     }
 
     @DeleteMapping("/{screenshotId}")
