@@ -179,24 +179,6 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("""
-                BUG (blockierend fuer den Hauptanwendungsfall): Ein Report ohne screenshotId laesst \
-                sich nicht anlegen. Der generierte ReportMapperImpl#toEntity erzeugt fuer jede \
-                verschachtelte Assoziation bedingungslos ein Objekt und prueft nur das aeussere DTO \
-                auf null. Bei screenshotId = null entsteht daher eine ScreenshotEntity mit id = null. \
-                ReportService ersetzt sie nur, wenn screenshotId gesetzt ist, also bleibt die \
-                transiente Instanz haengen und @ManyToOne ohne Cascade laesst den Insert scheitern:
-                
-                  org.hibernate.TransientPropertyValueException: Persistent instance of \
-                  'ReportsEntity' references an unsaved transient instance of 'ScreenshotEntity' \
-                  [ReportsEntity.screenshotEntity -> ScreenshotEntity]
-                
-                Nach aussen kommt daraus 500 INTERNAL_SERVER_ERROR. Dasselbe gilt fuer serverUUID = \
-                null. Ein Report ist damit nur anlegbar, wenn serverUUID UND screenshotId gesetzt \
-                sind - fuer den Normalfall 'Report ohne Screenshot' ist die Kernfunktion des Systems \
-                unbenutzbar. Fix: die Assoziationen nicht im Mapper aufbauen (@Mapping(target = ..., \
-                ignore = true)) und ausschliesslich im Service aus der Datenbank laden. Siehe \
-                reports/mapper/ReportMapper.java:22-37 und reports/service/ReportService.java:45-71.""")
         @DisplayName("legt einen Report ohne Screenshot an")
         void shouldCreateReportWithoutScreenshot() {
             ReportUpdateDto withoutScreenshot = new ReportUpdateDto(
@@ -207,41 +189,6 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody().screenshotId()).isNull();
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass ein Report ohne Screenshot aktuell mit 500 scheitert")
-        void shouldCurrentlyFailWithoutScreenshot() {
-            ReportUpdateDto withoutScreenshot = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
-                    serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, null);
-
-            ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/reports")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(withoutScreenshot)
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass ein Report ohne Server aktuell mit 500 scheitert")
-        void shouldCurrentlyFailWithoutServer() {
-            ReportUpdateDto withoutServer = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
-                    null, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, screenshotId);
-
-            ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/reports")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(withoutServer)
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         @Test
