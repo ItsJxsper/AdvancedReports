@@ -4,14 +4,16 @@ on:
   pull_request:
     branches: [ develop, main ]
     types: [ opened, synchronize, reopened, ready_for_review ]
+  push:
+    branches: [ develop, main ]
 
 permissions:
   contents: read
   packages: read
 
-# Neuer Push auf denselben PR bricht den laufenden Job ab
+# Neuer Push auf denselben PR (bzw. Branch) bricht den laufenden Job ab
 concurrency:
-  group: pr-ci-${{ github.event.pull_request.number }}
+  group: pr-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 # GITHUB_ACTOR setzt GitHub Actions selbst - nur das Token muss explizit gesetzt werden,
@@ -37,7 +39,9 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 25
+          java-version: |
+            21
+            25
 
       - name: Gradle Setup
         uses: gradle/actions/setup-gradle@v4
@@ -45,8 +49,25 @@ jobs:
       - name: Alle Module bauen (ohne Tests)
         run: ./gradlew build -x test --stacktrace
 
-      - name: Unit-Tests (ohne Docker)
-        run: ./gradlew :backend:unitTest --stacktrace
+      - name: Unit-Tests (ohne Docker) + Coverage
+        run: ./gradlew :backend:unitTest :backend:jacocoTestReport --stacktrace
+
+      # Die @Disabled-Tests sind ein dokumentierter Bug-Backlog, kein Test-Schulden-Rest.
+      # Ohne diesen Schritt sieht CI gruen aus, ohne dass jemand die Zahl im Blick hat.
+      - name: Quarantaenierte Tests zaehlen
+        if: always()
+        run: |
+          COUNT=$(grep -rho '@Disabled' backend/src/test --include='*.java' | wc -l)
+          FILES=$(grep -rl '@Disabled' backend/src/test --include='*.java' | wc -l)
+          echo "### Quarantaenierte Tests :construction:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **$COUNT** \`@Disabled\`-Tests in **$FILES** Dateien" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Jeder davon dokumentiert einen realen Bug. Betroffene Dateien:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          grep -rl '@Disabled' backend/src/test --include='*.java' \
+            | sed 's|backend/src/test/java/de/itsjxsper/advancedreports/backend/||' \
+            | sed 's|^|- `|; s|$|`|' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Testberichte hochladen
         if: always()
@@ -56,6 +77,7 @@ jobs:
           path: |
             backend/build/reports/tests/
             backend/build/test-results/
+            backend/build/reports/jacoco/
           retention-days: 7
           if-no-files-found: ignore
 
