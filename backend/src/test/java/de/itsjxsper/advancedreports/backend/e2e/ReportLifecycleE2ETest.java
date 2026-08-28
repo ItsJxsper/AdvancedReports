@@ -10,6 +10,7 @@ import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -66,8 +67,8 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         drainPluginQueue();
     }
 
-    private ReportUpdateDto newReport() {
-        return new ReportUpdateDto(
+    private ReportCreateDto newReport() {
+        return new ReportCreateDto(
                 reporter.playerUUID(),
                 reported.playerUUID(),
                 category.id(),
@@ -80,7 +81,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
                 screenshotId);
     }
 
-    private ResponseEntity<ReportDto> postReport(ReportUpdateDto body) {
+    private ResponseEntity<ReportDto> postReport(ReportCreateDto body) {
         return client().post()
                 .uri("/api/v1/reports")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -162,7 +163,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         @Test
         @DisplayName("antwortet mit 404 SERVER_NOT_FOUND für einen unbekannten Server")
         void shouldRejectUnknownServer() {
-            ReportUpdateDto withUnknownServer = new ReportUpdateDto(
+            ReportCreateDto withUnknownServer = new ReportCreateDto(
                     reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
                     UUID.randomUUID(), "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(),
                     null, screenshotId);
@@ -181,7 +182,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         @Test
         @DisplayName("legt einen Report ohne Screenshot an")
         void shouldCreateReportWithoutScreenshot() {
-            ReportUpdateDto withoutScreenshot = new ReportUpdateDto(
+            ReportCreateDto withoutScreenshot = new ReportCreateDto(
                     reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
                     serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, null);
 
@@ -194,7 +195,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         @Test
         @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND für einen unbekannten Screenshot")
         void shouldRejectUnknownScreenshot() {
-            ReportUpdateDto withUnknownScreenshot = new ReportUpdateDto(
+            ReportCreateDto withUnknownScreenshot = new ReportCreateDto(
                     reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
                     serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(),
                     null, 9_999L);
@@ -236,8 +237,8 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
             Long reportId = postReport(newReport()).getBody().id();
             drainPluginQueue();
 
-            // reporterUUID muss mitgeschickt werden, obwohl es sich nicht ändert: ReportUpdateDto
-            // markiert das Feld mit @NotNull und der Controller validiert mit @Valid, siehe
+            // reporterUUID wird hier bewusst mitgeschickt, um zu belegen, dass ein PATCH auch
+            // unveraenderte Felder tragen darf. Dass es entfallen kann, prueft
             // shouldUpdateOnlyTheStatus.
             ReportUpdateDto statusChange = new ReportUpdateDto(
                     reporter.playerUUID(), null, null, null, null, null,
@@ -293,13 +294,6 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("BUG: ReportUpdateDto#reporterUUID ist mit @NotNull annotiert "
-                + "(common ReportUpdateDto), und ReportController#updateReport validiert den Body mit "
-                + "@Valid. Ein PATCH kann daher nie nur den Status aendern - der Aufrufer muss die "
-                + "reporterUUID mitschicken, obwohl sie sich nicht aendert. Das DTO wird fuer POST "
-                + "(wo @NotNull sinnvoll ist) und fuer PATCH (wo es falsch ist) doppelt verwendet. "
-                + "Wegen des Auffangnetzes im GlobalExceptionHandler kommt daraus zudem 500 statt 400. "
-                + "Fix: ein eigenes ReportPatchDto ohne @NotNull, oder @Validated-Gruppen.")
         @DisplayName("ändert ausschließlich den Status, ohne weitere Felder mitzuschicken")
         void shouldUpdateOnlyTheStatus() {
             Long reportId = postReport(newReport()).getBody().id();

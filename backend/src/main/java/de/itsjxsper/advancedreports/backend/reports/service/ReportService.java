@@ -19,7 +19,9 @@ import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotF
 import de.itsjxsper.advancedreports.backend.server.data.entity.ServerEntity;
 import de.itsjxsper.advancedreports.backend.server.data.repository.ServerRepository;
 import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundException;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,20 +49,25 @@ public class ReportService {
     private final RabbitTemplate rabbitTemplate;
 
     @Transactional
-    public ReportDto createReport(ReportUpdateDto reportUpdateDto) {
-        log.debug("Creating report for reporter={} reported={}", reportUpdateDto.reporterUUID(), reportUpdateDto.reportedUUID());
+    public ReportDto createReport(ReportCreateDto reportCreateDto) {
+        log.debug("Creating report for reporter={} reported={}", reportCreateDto.reporterUUID(), reportCreateDto.reportedUUID());
 
-        var reportEntity = this.reportMapper.toEntity(reportUpdateDto);
+        var reportEntity = this.reportMapper.toEntity(reportCreateDto);
+
+        // Ein frisch eingegangener Report ist PENDING - der Client muss das nicht mitschicken.
+        if (reportEntity.getReportStatus() == null) {
+            reportEntity.setReportStatus(ReportStatus.PENDING);
+        }
 
         // Frueher wurden nur server und screenshot aufgeloest; reporter, reported, categoryEntity und
         // handledBy blieben Mapper-Attrappen mit gesetzter ID. Eine unbekannte Spieler- oder
         // Kategorie-ID lief damit in eine FK-Verletzung statt in ein sauberes 404.
-        reportEntity.setReporter(requirePlayer(reportUpdateDto.reporterUUID()));
-        reportEntity.setReported(requirePlayer(reportUpdateDto.reportedUUID()));
-        reportEntity.setCategoryEntity(requireCategory(reportUpdateDto.categoryId()));
-        reportEntity.setHandledBy(findPlayer(reportUpdateDto.handledByUUID()));
-        reportEntity.setServer(findServer(reportUpdateDto.serverUUID()));
-        reportEntity.setScreenshotEntity(findScreenshot(reportUpdateDto.screenshotId()));
+        reportEntity.setReporter(requirePlayer(reportCreateDto.reporterUUID()));
+        reportEntity.setReported(requirePlayer(reportCreateDto.reportedUUID()));
+        reportEntity.setCategoryEntity(requireCategory(reportCreateDto.categoryId()));
+        reportEntity.setHandledBy(findPlayer(reportCreateDto.handledByUUID()));
+        reportEntity.setServer(findServer(reportCreateDto.serverUUID()));
+        reportEntity.setScreenshotEntity(findScreenshot(reportCreateDto.screenshotId()));
 
         ReportsEntity savedEntity = this.reportRepository.save(reportEntity);
         log.debug("Created report with id={}", savedEntity.getId());

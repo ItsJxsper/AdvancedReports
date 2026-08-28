@@ -1,6 +1,7 @@
 package de.itsjxsper.advancedreports.backend.reports.mapper;
 
 import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.mapstruct.*;
@@ -41,7 +42,7 @@ public interface ReportMapper {
             @Mapping(source = "reportStatus", target = "reportStatus"),
             @Mapping(source = "handlerNote", target = "handlerNote")
     })
-    ReportsEntity toEntity(ReportUpdateDto dto);
+    ReportsEntity toEntity(ReportCreateDto dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings({
