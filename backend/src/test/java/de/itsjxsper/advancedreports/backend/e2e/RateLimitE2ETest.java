@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.ratelimit.aspect.RateLimitAspect;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import org.junit.jupiter.api.DisplayName;

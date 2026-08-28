@@ -78,9 +78,7 @@ class DiscordPlayerControllerTest {
                 + "(common DiscordPlayerDto und discord/data/entity/DiscordPlayerEntity.java:18). "
                 + "Discord-IDs sind 17-19-stellige Snowflakes, also wird jede echte Discord-ID von "
                 + "der Bean Validation abgelehnt - die Domain ist mit realen Daten unbenutzbar. "
-                + "Gemeint war vermutlich @Digits(integer = 18, fraction = 0). Erschwerend kommt "
-                + "hinzu, dass die Ablehnung wegen des Auffangnetzes im GlobalExceptionHandler als "
-                + "500 statt 400 herauskommt.")
+                + "Gemeint war vermutlich @Digits(integer = 19, fraction = 0).")
         @DisplayName("akzeptiert eine echte, 18-stellige Discord-Snowflake")
         void shouldAcceptRealSnowflake() throws Exception {
             DiscordPlayerDto dto = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, REAL_SNOWFLAKE);
@@ -94,15 +92,15 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass eine echte Discord-Snowflake aktuell abgelehnt wird")
+        @DisplayName("dokumentiert, dass eine echte Discord-Snowflake aktuell mit 400 abgelehnt wird")
         void shouldCurrentlyRejectRealSnowflake() throws Exception {
             DiscordPlayerDto dto = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, REAL_SNOWFLAKE);
 
             mockMvc.perform(post("/api/v1/discord-players")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
         }
     }
 

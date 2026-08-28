@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
@@ -167,7 +167,7 @@ class PlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass ein Update ohne Namen aktuell mit 500 scheitert")
+        @DisplayName("dokumentiert, dass ein Update ohne Namen aktuell mit 409 scheitert")
         void shouldCurrentlyFailWhenNameAbsent() {
             UUID playerUuid = UUID.randomUUID();
             ApiFixtures.createPlayer(client(), playerUuid, "Notch");
@@ -180,8 +180,11 @@ class PlayerE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
+            // orElse(null) schreibt null in die NOT-NULL-Spalte player_name. Das ist jetzt eine
+            // gemeldete DataIntegrityViolationException (409) statt eines 500 - PATCH loescht den
+            // Namen aber weiterhin, statt das Feld auszulassen.
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.CONFLICT);
         }
     }
 }

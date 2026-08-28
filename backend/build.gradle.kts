@@ -44,6 +44,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     //implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    // Bean Validation kam bisher nur zufaellig ueber springdoc-openapi herein.
+    // Ohne explizite Deklaration verschwindet jedes @Valid still, sobald sich
+    // die Doku-Abhaengigkeit aendert.
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("software.amazon.awssdk:s3:2.42.35")
     implementation("org.mapstruct:mapstruct:1.6.3")

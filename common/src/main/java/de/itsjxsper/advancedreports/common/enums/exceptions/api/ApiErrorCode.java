@@ -76,5 +76,33 @@ public enum ApiErrorCode {
     /**
      * An internal server error occurred.
      */
-    INTERNAL_SERVER_ERROR
+    INTERNAL_SERVER_ERROR,
+    /**
+     * The request body failed bean validation. The message names the offending fields.
+     */
+    VALIDATION_FAILED,
+    /**
+     * The request body could not be parsed, e.g. malformed JSON.
+     */
+    MALFORMED_REQUEST,
+    /**
+     * The request Content-Type is not supported by the endpoint.
+     */
+    UNSUPPORTED_MEDIA_TYPE,
+    /**
+     * The endpoint cannot produce any of the media types the client accepts.
+     */
+    NOT_ACCEPTABLE,
+    /**
+     * No endpoint exists for the requested path.
+     */
+    RESOURCE_NOT_FOUND,
+    /**
+     * The request conflicts with the current state, e.g. a unique constraint violation.
+     */
+    CONFLICT,
+    /**
+     * The uploaded payload exceeds the configured maximum size.
+     */
+    PAYLOAD_TOO_LARGE
 }

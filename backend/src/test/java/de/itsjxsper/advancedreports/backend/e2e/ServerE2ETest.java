@@ -1,7 +1,7 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.DbFixtures;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
@@ -72,9 +72,12 @@ class ServerE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
-            // Der Body wird ignoriert, das leere DTO verletzt die NOT-NULL-Spalten.
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
+            // Der Body wird ignoriert, das leere DTO verletzt die NOT-NULL-Spalten. Seit der
+            // GlobalExceptionHandler von ResponseEntityExceptionHandler ableitet und
+            // DataIntegrityViolationException abbildet, kommt daraus 409 statt 500 - der Bug
+            // selbst (fehlendes @RequestBody) besteht unveraendert weiter.
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.CONFLICT);
         }
 
         @Test
@@ -87,10 +90,10 @@ class ServerE2ETest extends AbstractE2ETest {
                     .toEntity(ApiErrorResponse.class);
 
             // "Failed to convert value of type 'java.lang.String' to required type
-            // 'java.net.InetAddress'" - und weil der GlobalExceptionHandler ein Auffangnetz fuer
-            // Exception hat, kommt daraus 500 statt 400.
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
+            // 'java.net.InetAddress'". Der Bindungsfehler laeuft jetzt ueber
+            // ResponseEntityExceptionHandler und wird als 400 gemeldet statt als 500; der fehlende
+            // String-nach-InetAddress-Converter ist damit unveraendert vorhanden.
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
     }
 
