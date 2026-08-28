@@ -1,15 +1,22 @@
 plugins {
-    id("java")
+    id("java-library")
     id("maven-publish")
 }
 
 description = "Common module - shared utilities and models"
 
 dependencies {
-    implementation("org.jetbrains:annotations:26.1.0")
+    // ObjectMapper appears in the public signature of ApiException.fromHttpResponse ->
+    // must be on consumers' compile classpath, not just their runtime classpath.
+    api(libs.jackson.databind)
+    // jakarta.validation.constraints annotations sit on the public DTO record components.
+    api(libs.jakarta.validation.api)
+    // Not imported anywhere in common; consumers need it registered to (de)serialize the
+    // java.time fields on the DTOs.
+    runtimeOnly(libs.jackson.datatype.jsr310)
+    // org.jetbrains annotations are CLASS-retention only - no runtime need.
+    compileOnly(libs.jetbrains.annotations)
 
-    implementation("jakarta.validation:jakarta.validation-api:3.1.1")
-
-    compileOnly("org.projectlombok:lombok:1.18.46")
-    annotationProcessor("org.projectlombok:lombok:1.18.46")
+    compileOnly(libs.lombok)
+    annotationProcessor(libs.lombok)
 }

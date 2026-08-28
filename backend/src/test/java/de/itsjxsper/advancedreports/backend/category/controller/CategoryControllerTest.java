@@ -265,28 +265,16 @@ class CategoryControllerTest {
     }
 
     /**
-     * Bean-Validation und Body-Parsing werden aktuell alle auf 500 abgebildet, siehe die
-     * {@code @Disabled}-Begründungen unten. Die Soll-Tests bleiben stehen, damit der Fix sofort
-     * sichtbar wird; die Ist-Tests halten das heutige Verhalten fest.
+     * Bean-Validation und Body-Parsing laufen ueber ResponseEntityExceptionHandler, von dem
+     * GlobalExceptionHandler ableitet. Ohne diese Vererbung faengt das
+     * {@code @ExceptionHandler(Exception.class)}-Auffangnetz auch die Framework-Exceptions ab und
+     * macht aus jedem Client-Fehler eine 500.
      */
     @Nested
     @DisplayName("Framework-Fehlerabbildung")
     class Validation {
 
-        private static final String VALIDATION_BUG =
-                "BUG: GlobalExceptionHandler (exceptions/GlobalExceptionHandler.java:120) hat einen "
-                        + "@ExceptionHandler(Exception.class) als Auffangnetz. Der "
-                        + "ExceptionHandlerExceptionResolver laeuft vor Springs "
-                        + "DefaultHandlerExceptionResolver, deshalb faengt dieses Auffangnetz auch "
-                        + "MethodArgumentNotValidException und HttpMessageNotReadableException ab. "
-                        + "Jeder Eingabefehler des Clients wird dadurch zu 500 INTERNAL_SERVER_ERROR "
-                        + "mit der Meldung 'An unexpected error occurred.' statt zu 400 - Clients "
-                        + "koennen ihren eigenen Fehler nicht von einem Serverfehler unterscheiden. "
-                        + "Fix: GlobalExceptionHandler von ResponseEntityExceptionHandler ableiten "
-                        + "oder eigene Handler fuer die beiden Exceptions ergaenzen.";
-
         @Test
-        @Disabled(VALIDATION_BUG)
         @DisplayName("liefert 400, wenn der Name kürzer als 3 Zeichen ist")
         void shouldRejectTooShortName() throws Exception {
             CategoryDto invalid = new CategoryDto(1L, "ab", "Bugs", "Fehlermeldungen", 60L, true);
@@ -298,7 +286,6 @@ class CategoryControllerTest {
         }
 
         @Test
-        @Disabled(VALIDATION_BUG)
         @DisplayName("liefert 400, wenn cooldownSec negativ ist")
         void shouldRejectNegativeCooldown() throws Exception {
             CategoryDto invalid = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen", -1L, true);
@@ -310,7 +297,6 @@ class CategoryControllerTest {
         }
 
         @Test
-        @Disabled(VALIDATION_BUG)
         @DisplayName("liefert 400 bei kaputtem JSON")
         void shouldRejectMalformedJson() throws Exception {
             mockMvc.perform(post("/api/v1/categories")
@@ -320,30 +306,6 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass eine Validierungsverletzung aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnValidationFailure() throws Exception {
-            CategoryDto invalid = new CategoryDto(1L, "ab", "Bugs", "Fehlermeldungen", 60L, true);
-
-            mockMvc.perform(post("/api/v1/categories")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(invalid)))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
-                    .andExpect(jsonPath("$.message").value("An unexpected error occurred."));
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass kaputtes JSON aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnMalformedJson() throws Exception {
-            mockMvc.perform(post("/api/v1/categories")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{ not json"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
-
-        @Test
-        @Disabled(VALIDATION_BUG)
         @DisplayName("liefert 415, wenn der Content-Type nicht JSON ist")
         void shouldRejectUnsupportedMediaType() throws Exception {
             mockMvc.perform(post("/api/v1/categories")
@@ -353,13 +315,6 @@ class CategoryControllerTest {
         }
 
         @Test
-        @Disabled("BUG: GlobalExceptionHandler behandelt "
-                + "org.springframework.web.server.MethodNotAllowedException "
-                + "(exceptions/GlobalExceptionHandler.java:21) - das ist die reaktive Variante aus "
-                + "WebFlux. Dieses Backend laeuft auf Spring MVC (spring-boot-starter-webmvc) und "
-                + "wirft HttpRequestMethodNotSupportedException, eine voellig andere Klasse. Der "
-                + "Handler feuert daher nie, ApiErrorCode.METHOD_NOT_ALLOWED ist toter Code und eine "
-                + "falsche HTTP-Methode landet ueber das Auffangnetz bei 500.")
         @DisplayName("liefert 405 METHOD_NOT_ALLOWED bei einer falschen HTTP-Methode")
         void shouldRejectWrongHttpMethod() throws Exception {
             mockMvc.perform(put("/api/v1/categories/1")
@@ -369,24 +324,5 @@ class CategoryControllerTest {
                     .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass ein falscher Content-Type aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnWrongContentType() throws Exception {
-            mockMvc.perform(post("/api/v1/categories")
-                            .contentType(MediaType.TEXT_PLAIN)
-                            .content("bugs"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass eine falsche HTTP-Methode aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnWrongHttpMethod() throws Exception {
-            mockMvc.perform(put("/api/v1/categories/1")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(categoryDto)))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
     }
 }

@@ -2,6 +2,7 @@ plugins {
     java
     id("org.springframework.boot") version "4.1.0"
     id("io.spring.dependency-management") version "1.1.7"
+    jacoco
 }
 
 group = "de.itsjxsper"
@@ -26,8 +27,12 @@ repositories {
         name = "githubPackages"
         url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
         credentials {
-            username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("actor")
-            password = providers.gradleProperty("gpr.token").orNull ?: System.getenv("token")
+            username = providers.gradleProperty("gpr.user")
+                .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                .orNull
+            password = providers.gradleProperty("gpr.token")
+                .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                .orNull
         }
     }
 }
@@ -39,6 +44,10 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     //implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    // Bean Validation kam bisher nur zufaellig ueber springdoc-openapi herein.
+    // Ohne explizite Deklaration verschwindet jedes @Valid still, sobald sich
+    // die Doku-Abhaengigkeit aendert.
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("software.amazon.awssdk:s3:2.42.35")
     implementation("org.mapstruct:mapstruct:1.6.3")
@@ -64,21 +73,23 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 
-    val mockitoAgent = configurations.testRuntimeClasspath.get()
-        .files
-        .find { it.name.contains("mockito-core") }
-
-    if (mockitoAgent != null) {
-        jvmArgs("-javaagent:${mockitoAgent.absolutePath}")
-    }
+    // Mockito braucht ab JDK 21 den Agent explizit. Die Aufloesung muss lazy bleiben:
+    // ein direktes configurations.testRuntimeClasspath.get().files loest die Konfiguration
+    // bereits in der Konfigurationsphase auf - bei JEDEM Aufruf, auch bei 'build -x test'
+    // und 'bootBuildImage' - und verhindert ausserdem den Configuration Cache.
+    val testRuntimeClasspath: FileCollection = configurations.testRuntimeClasspath.get()
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        val agent = testRuntimeClasspath.files.find { it.name.contains("mockito-core") }
+        if (agent != null) listOf("-javaagent:${agent.absolutePath}") else emptyList()
+    })
 }
 
 // Runs everything that does not need a Docker daemon: pure Mockito unit tests
-// and @WebMvcTest slices. Integration (*IT) and end-to-end (*E2ETest) tests are
-// excluded because they start Testcontainers.
+// and @WebMvcTest slices. End-to-end (*E2ETest) tests match "*Test" too, so they
+// have to be excluded explicitly; "*IT" never matches "*Test" in the first place.
 tasks.register<Test>("unitTest") {
     description = "Runs only the tests that do not require Docker."
     group = "verification"
@@ -88,7 +99,6 @@ tasks.register<Test>("unitTest") {
 
     filter {
         includeTestsMatching("*Test")
-        excludeTestsMatching("*IT")
         excludeTestsMatching("*E2ETest")
     }
 }
@@ -105,5 +115,27 @@ tasks.register<Test>("integrationTest") {
     filter {
         includeTestsMatching("*IT")
         includeTestsMatching("*E2ETest")
+    }
+}
+
+// Das Standard-'test' wuerde ALLES ausfuehren, also auch die Testcontainers-Tests -
+// 'gradlew build' hat damit bisher unbemerkt einen Docker-Daemon vorausgesetzt.
+// Stattdessen haengt 'check' nur an unitTest; integrationTest wird explizit aufgerufen.
+tasks.named<Test>("test") {
+    enabled = false
+}
+
+tasks.named("check") {
+    dependsOn(tasks.named("unitTest"))
+}
+
+// unitTest und integrationTest schreiben getrennte .exec-Dateien - der Report fasst
+// beide zusammen, damit die Abdeckung nicht pro Stage auseinanderfaellt.
+tasks.jacocoTestReport {
+    executionData(fileTree(layout.buildDirectory).include("jacoco/*.exec"))
+
+    reports {
+        xml.required = true
+        html.required = true
     }
 }

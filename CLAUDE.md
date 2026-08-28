@@ -38,8 +38,9 @@ dependencies not yet in the catalog.
 
 GitHub Packages (`maven.pkg.github.com/ItsJxsper/advancedreports`) is used both as a dependency source (for `common`)
 and a publish target; credentials come from `gpr.user`/`gpr.token` Gradle properties or `GITHUB_ACTOR`/`GITHUB_TOKEN`
-/env fallbacks (inconsistent naming across files — check the specific `build.gradle.kts`/`settings.gradle.kts` before
-assuming which env var applies).
+env fallbacks. All five declaration sites (`settings.gradle.kts`, the `allprojects` and `publishing`
+blocks of the root `build.gradle.kts`, `backend/build.gradle.kts`, `api/build.gradle.kts`) use exactly these names —
+keep them in sync when adding another.
 
 ## Common commands
 

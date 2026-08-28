@@ -1,8 +1,8 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
 import de.itsjxsper.advancedreports.backend.config.RabbitMQConfiguration;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
 import de.itsjxsper.advancedreports.backend.support.DbFixtures;
@@ -372,7 +372,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass ein PATCH ohne reporterUUID mit 500 scheitert")
+        @DisplayName("dokumentiert, dass ein PATCH ohne reporterUUID mit 400 scheitert")
         void shouldCurrentlyRejectPatchWithoutReporterUuid() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -386,8 +386,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
+            // reporterUUID ist im gemeinsamen ReportUpdateDto @NotNull, obwohl PATCH ein
+            // Teil-Update ist. Das meldet sich jetzt sauber als 400 VALIDATION_FAILED statt als
+            // 500 - dass Create und PATCH sich ein DTO teilen, bleibt der eigentliche Fehler.
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.VALIDATION_FAILED);
         }
 
         @Test

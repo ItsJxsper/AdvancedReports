@@ -5,6 +5,14 @@ on:
       - "plugin-v*"
       - "proxy-v*"
 
+permissions:
+  contents: write
+  packages: read
+
+# GITHUB_ACTOR setzt GitHub Actions selbst - nur das Token muss explizit gesetzt werden
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   determine-module:
     runs-on: ubuntu-latest
@@ -19,7 +27,7 @@ jobs:
           MODULE="${TAG%%-v*}"
           VERSION="${TAG#${MODULE}-v}"
 
-          if [[ "$MODULE" != "common" && "$MODULE" != "api" ]]; then
+          if [[ "$MODULE" != "plugin" && "$MODULE" != "proxy" ]]; then
             echo "::error::Unbekanntes Modul im Tag: $TAG"
             exit 1
           fi
@@ -42,22 +50,18 @@ jobs:
         run: chmod +x ./gradlew
 
 
-      - name: JDK 25 einrichten
+      # proxy pinnt Toolchain 21, plugin braucht 25 - ohne Toolchain-Resolver
+      # muessen beide installiert sein
+      - name: JDK 21 und 25 einrichten
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: |
+            21
+            25
 
       - name: Gradle Setup
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Version im Tag gegen gradle.properties prüfen
-        run: |
-          FILE_VERSION=$(grep '^moduleVersion=' "$MODULE/gradle.properties" | cut -d'=' -f2)
-          if [[ "$FILE_VERSION" != "$VERSION" ]]; then
-            echo "::error::Tag-Version ($VERSION) stimmt nicht mit $MODULE/gradle.properties ($FILE_VERSION) überein"
-            exit 1
-          fi
 
       - name: Version im Tag gegen gradle.properties prüfen
         run: |
