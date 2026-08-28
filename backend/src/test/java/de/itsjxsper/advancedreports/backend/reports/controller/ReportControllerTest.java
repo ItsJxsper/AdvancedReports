@@ -5,6 +5,7 @@ import de.itsjxsper.advancedreports.backend.reports.service.ReportService;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -41,6 +42,8 @@ class ReportControllerTest {
     private final ReportDto reportDto = new ReportDto(1L, REPORTER_UUID, REPORTED_UUID, 7L,
             "Verdacht auf Fliegen", SERVER_UUID, "world:100:64:-200", ReportStatus.PENDING,
             HANDLER_UUID, null, null, Instant.parse("2026-01-01T12:00:00Z"), null);
+    private final ReportCreateDto createDto = TestDataFactory.reportCreateDto(
+            REPORTER_UUID, REPORTED_UUID, 7L, SERVER_UUID, HANDLER_UUID);
     private final ReportUpdateDto updateDto = TestDataFactory.reportUpdateDto(
             REPORTER_UUID, REPORTED_UUID, 7L, SERVER_UUID, HANDLER_UUID);
     @Autowired
@@ -88,7 +91,7 @@ class ReportControllerTest {
 
             mockMvc.perform(post("/api/v1/reports")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(updateDto)))
+                            .content(objectMapper.writeValueAsString(createDto)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id").value(1))
                     .andExpect(jsonPath("$.serverUUID").value(SERVER_UUID.toString()));
@@ -101,10 +104,10 @@ class ReportControllerTest {
 
             mockMvc.perform(post("/api/v1/reports")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(updateDto)))
+                            .content(objectMapper.writeValueAsString(createDto)))
                     .andExpect(status().isCreated());
 
-            verify(reportService).createReport(updateDto);
+            verify(reportService).createReport(createDto);
         }
     }
 

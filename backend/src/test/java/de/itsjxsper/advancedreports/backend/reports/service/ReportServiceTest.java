@@ -21,6 +21,7 @@ import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundExce
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -118,6 +119,11 @@ class ReportServiceTest {
         when(categoryRepository.findById(CATEGORY_ID)).thenReturn(Optional.of(categoryEntity));
     }
 
+    private ReportCreateDto createDto(UUID serverUuid, Long screenshotId) {
+        return new ReportCreateDto(REPORTER_UUID, REPORTED_UUID, CATEGORY_ID, "Verdacht auf Fliegen",
+                serverUuid, "world:100:64:-200", ReportStatus.PENDING, HANDLER_UUID, null, screenshotId);
+    }
+
     private ReportUpdateDto updateDto(UUID serverUuid, Long screenshotId) {
         return new ReportUpdateDto(REPORTER_UUID, REPORTED_UUID, CATEGORY_ID, "Verdacht auf Fliegen",
                 serverUuid, "world:100:64:-200", ReportStatus.PENDING, HANDLER_UUID, null, screenshotId);
@@ -130,7 +136,7 @@ class ReportServiceTest {
         @Test
         @DisplayName("legt einen Report an und veröffentlicht ein ReportCreatedEvent")
         void shouldCreateReportAndPublishEvent() {
-            ReportUpdateDto dto = updateDto(SERVER_UUID, SCREENSHOT_ID);
+            ReportCreateDto dto = createDto(SERVER_UUID, SCREENSHOT_ID);
 
             when(reportMapper.toEntity(dto)).thenReturn(reportEntity);
             stubCoreAssociations();
@@ -162,7 +168,7 @@ class ReportServiceTest {
         @Test
         @DisplayName("wirft ServerNotFoundException, wenn der referenzierte Server fehlt")
         void shouldThrowWhenServerNotFound() {
-            ReportUpdateDto dto = updateDto(SERVER_UUID, null);
+            ReportCreateDto dto = createDto(SERVER_UUID, null);
 
             when(reportMapper.toEntity(dto)).thenReturn(reportEntity);
             stubCoreAssociations();
@@ -179,7 +185,7 @@ class ReportServiceTest {
         @Test
         @DisplayName("wirft ScreenshotNotFoundException, wenn der referenzierte Screenshot fehlt")
         void shouldThrowWhenScreenshotNotFound() {
-            ReportUpdateDto dto = updateDto(SERVER_UUID, SCREENSHOT_ID);
+            ReportCreateDto dto = createDto(SERVER_UUID, SCREENSHOT_ID);
 
             when(reportMapper.toEntity(dto)).thenReturn(reportEntity);
             stubCoreAssociations();
@@ -197,7 +203,7 @@ class ReportServiceTest {
         @Test
         @DisplayName("schlägt keinen Screenshot nach, wenn keine screenshotId übergeben wurde")
         void shouldNotLookUpScreenshotWhenIdAbsent() {
-            ReportUpdateDto dto = updateDto(SERVER_UUID, null);
+            ReportCreateDto dto = createDto(SERVER_UUID, null);
 
             when(reportMapper.toEntity(dto)).thenReturn(reportEntity);
             stubCoreAssociations();
@@ -213,7 +219,7 @@ class ReportServiceTest {
         @Test
         @DisplayName("legt einen Report ohne Server an und veröffentlicht ein Event ohne serverUuid")
         void shouldCreateReportWithoutServer() {
-            ReportUpdateDto dto = updateDto(null, null);
+            ReportCreateDto dto = createDto(null, null);
             reportEntity.setServer(null);
 
             when(reportMapper.toEntity(dto)).thenReturn(reportEntity);
@@ -233,7 +239,7 @@ class ReportServiceTest {
         @Test
         @DisplayName("wirft PlayerNotFoundException, wenn der Reporter nicht existiert")
         void shouldValidateReporterExists() {
-            ReportUpdateDto dto = updateDto(SERVER_UUID, null);
+            ReportCreateDto dto = createDto(SERVER_UUID, null);
 
             when(reportMapper.toEntity(dto)).thenReturn(reportEntity);
             when(playerRepository.findById(REPORTER_UUID)).thenReturn(Optional.empty());
