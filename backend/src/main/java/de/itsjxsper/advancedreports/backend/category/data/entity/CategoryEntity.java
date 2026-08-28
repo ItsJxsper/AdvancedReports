@@ -15,8 +15,6 @@ import java.util.Set;
 @Entity
 @Table(name = "categories_entity")
 public class CategoryEntity {
-    @Column(name = "active")
-    private final Boolean active = true;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -28,8 +26,13 @@ public class CategoryEntity {
     private String displayName;
     @Column(name = "description")
     private String description;
+
+    // Vorher final, weshalb Lombok keinen Setter erzeugte und MapStruct das Feld nicht schreiben
+    // konnte: eine Kategorie war dauerhaft aktiv und CategoryDto#active war faktisch read-only.
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
+    // Ohne den Type-Code liegt ein Long auf bigint statt auf einer 4-Byte-Spalte.
     @Column(name = "cooldown_sec")
-    @JdbcTypeCode(SqlTypes.INTEGER)
     private Long cooldownSec;
     // Kein orphanRemoval: es haette das Loeschen einer Kategorie zu einem stillen Loeschen aller
     // zugehoerigen Reports gemacht. reports_entity.category_entity_id ist NOT NULL, ein Abhaengen
