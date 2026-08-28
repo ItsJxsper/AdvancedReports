@@ -2,6 +2,7 @@ package de.itsjxsper.advancedreports.backend.screenshot.service;
 
 import de.itsjxsper.advancedreports.backend.screenshot.data.entity.ScreenshotEntity;
 import de.itsjxsper.advancedreports.backend.screenshot.data.repository.ScreenshotRepository;
+import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
 import de.itsjxsper.advancedreports.backend.screenshot.mapper.ScreenshotMapper;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
@@ -188,12 +189,13 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("gibt null zurück, wenn der Screenshot nicht existiert")
-        void shouldReturnNullWhenNotFound() {
+        @DisplayName("wirft ScreenshotNotFoundException, wenn der Screenshot nicht existiert")
+        void shouldThrowWhenNotFound() {
             ScreenshotUpdateDto dto = TestDataFactory.screenshotUpdateDto(OBJECT_KEY);
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
-            assertThat(screenshotService.updateScreenshot(SCREENSHOT_ID, dto)).isNull();
+            assertThatThrownBy(() -> screenshotService.updateScreenshot(SCREENSHOT_ID, dto))
+                    .isInstanceOf(ScreenshotNotFoundException.class);
             verify(screenshotRepository, never()).save(any());
         }
     }
@@ -226,11 +228,12 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("tut nichts, wenn der Screenshot nicht existiert")
-        void shouldDoNothingWhenNotFound() {
+        @DisplayName("wirft ScreenshotNotFoundException, wenn der Screenshot nicht existiert")
+        void shouldThrowWhenDeletingUnknownScreenshot() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
-            screenshotService.deleteScreenshot(SCREENSHOT_ID);
+            assertThatThrownBy(() -> screenshotService.deleteScreenshot(SCREENSHOT_ID))
+                    .isInstanceOf(ScreenshotNotFoundException.class);
 
             verifyNoInteractions(screenshotStorageService);
             verify(screenshotRepository, never()).delete(any(ScreenshotEntity.class));
@@ -251,11 +254,12 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("gibt null zurück, wenn die Metadaten nicht existieren")
-        void shouldReturnNullWhenNotFound() {
+        @DisplayName("wirft ScreenshotNotFoundException, wenn die Metadaten nicht existieren")
+        void shouldThrowWhenMetadataMissing() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
-            assertThat(screenshotService.getScreenshot(SCREENSHOT_ID)).isNull();
+            assertThatThrownBy(() -> screenshotService.getScreenshot(SCREENSHOT_ID))
+                    .isInstanceOf(ScreenshotNotFoundException.class);
         }
 
         @Test
@@ -270,11 +274,12 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("gibt null zurück, wenn der Screenshot nicht existiert")
-        void shouldReturnNullForDownloadWhenNotFound() {
+        @DisplayName("wirft ScreenshotNotFoundException, wenn der Screenshot nicht existiert")
+        void shouldThrowForDownloadWhenNotFound() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
-            assertThat(screenshotService.downloadScreenshot(SCREENSHOT_ID)).isNull();
+            assertThatThrownBy(() -> screenshotService.downloadScreenshot(SCREENSHOT_ID))
+                    .isInstanceOf(ScreenshotNotFoundException.class);
         }
 
         @Test

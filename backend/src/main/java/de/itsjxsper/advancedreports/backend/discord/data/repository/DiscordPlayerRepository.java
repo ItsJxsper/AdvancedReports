@@ -8,4 +8,8 @@ import java.util.UUID;
 
 public interface DiscordPlayerRepository extends JpaRepository<DiscordPlayerEntity, Long> {
     Optional<DiscordPlayerEntity> findByPlayerEntity_PlayerUuid(UUID playerUuid);
+
+    boolean existsByPlayerEntity_PlayerUuid(UUID playerUuid);
+
+    boolean existsByDiscordUserId(Long discordUserId);
 }

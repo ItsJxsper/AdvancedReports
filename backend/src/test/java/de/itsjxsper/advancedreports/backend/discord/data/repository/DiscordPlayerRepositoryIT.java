@@ -93,12 +93,6 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
     class Deleting {
 
         @Test
-        @Disabled("BUG: DiscordPlayerEntity#playerEntity ist mit "
-                + "@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true) gemappt "
-                + "(discord/data/entity/DiscordPlayerEntity.java:14). Das Loeschen einer "
-                + "Discord-Verknuepfung reisst damit den Minecraft-Spieler mit - und ueber dessen "
-                + "Reports potenziell weitere Daten. Die Verknuepfung ist die abhaengige Seite und "
-                + "darf den Spieler nicht besitzen; erwartet wird cascade = {} ohne orphanRemoval.")
         @DisplayName("löscht nur die Verknüpfung, nicht den Spieler")
         void shouldNotDeletePlayerWithLink() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
@@ -115,18 +109,5 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
                     .isNotNull();
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass das Löschen der Verknüpfung aktuell den Spieler mitlöscht")
-        void shouldCurrentlyDeletePlayerToo() {
-            PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
-            DiscordPlayerEntity link =
-                    entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 17L));
-
-            discordPlayerRepository.delete(link);
-            entityManager.flush();
-            entityManager.clear();
-
-            assertThat(entityManager.find(PlayerEntity.class, PLAYER_UUID)).isNull();
-        }
     }
 }

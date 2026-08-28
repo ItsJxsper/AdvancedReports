@@ -28,6 +28,8 @@ public class ServerEntity {
     @Column(name = "port", nullable = false)
     private Integer port;
 
-    @OneToMany(mappedBy = "server", orphanRemoval = true)
+    // Kein orphanRemoval: reports_entity.server ist nullable, ein geloeschter Server haengt seine
+    // Reports daher ab, statt sie mitzureissen.
+    @OneToMany(mappedBy = "server")
     private Set<ReportsEntity> reportsEntitiesEntities = new LinkedHashSet<>();
 }

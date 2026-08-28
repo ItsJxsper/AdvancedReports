@@ -38,7 +38,9 @@ public class ScreenshotEntity {
     @Enumerated(EnumType.STRING)
     private UploadStatus uploadStatus;
 
-    @OneToMany(mappedBy = "screenshotEntity", orphanRemoval = true)
+    // Kein orphanRemoval: ein geloeschter Screenshot ist ein entfernter Anhang, kein Grund den
+    // Report zu vernichten. reports_entity.screenshot ist nullable und wird abgehaengt.
+    @OneToMany(mappedBy = "screenshotEntity")
     private Set<ReportsEntity> reportsEntities = new LinkedHashSet<>();
 
 }
