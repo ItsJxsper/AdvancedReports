@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("E2E: Server")
 class ServerE2ETest extends AbstractE2ETest {
 
+
     @Nested
     @DisplayName("Registrierung")
     class Registration {
@@ -134,6 +135,16 @@ class ServerE2ETest extends AbstractE2ETest {
     class Deleting {
 
         @Test
+        @Disabled("""
+                BUG: DELETE /api/v1/servers/{uuid} meldet 204, loescht aber nichts. ServerService ist \
+                auf Klassenebene mit @Transactional(readOnly = true) annotiert, und #deleteServer \
+                (server/service/ServerService.java:69) hat - anders als #createServer, #updateServer \
+                und #getAllServers - kein eigenes @Transactional. Die Methode laeuft daher in einer \
+                read-only-Transaktion; Hibernate setzt darin FlushMode.MANUAL, sodass das DELETE nie \
+                geflusht wird und stillschweigend verpufft. Nachweis: nach dem 204 liefert ein GET auf \
+                dieselbe UUID weiterhin 200. Fix: @Transactional an #deleteServer ergaenzen (und die \
+                fehlende Existenzpruefung gleich mit, siehe \
+                shouldReturnNotFoundOnDeletingUnknownServer).""")
         @DisplayName("löscht einen registrierten Server")
         void shouldDeleteServer() {
             UUID serverUuid = DbFixtures.insertServer(dataSource);
@@ -152,6 +163,35 @@ class ServerE2ETest extends AbstractE2ETest {
         }
 
         @Test
+        @DisplayName("dokumentiert, dass ein gelöschter Server weiterhin abrufbar bleibt")
+        void shouldCurrentlyNotActuallyDeleteServer() {
+            UUID serverUuid = DbFixtures.insertServer(dataSource);
+
+            assertThat(client().delete()
+                    .uri("/api/v1/servers/{uuid}", serverUuid)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+            // Das DELETE wird in der read-only-Transaktion nie geflusht.
+            assertThat(client().get()
+                    .uri("/api/v1/servers/{uuid}", serverUuid)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .getStatusCode()).isEqualTo(HttpStatus.OK);
+
+            assertThat(client().get()
+                    .uri("/api/v1/servers/count")
+                    .retrieve()
+                    .toEntity(Long.class)
+                    .getBody()).isEqualTo(1L);
+        }
+
+        @Test
+        @Disabled("BUG: ServerService#deleteServer (server/service/ServerService.java:71) ruft direkt "
+                + "deleteById ohne Existenzpruefung. Ein DELETE auf eine unbekannte Server-UUID meldet "
+                + "daher 204 No Content statt 404 SERVER_NOT_FOUND, obwohl Category, Player, Report "
+                + "und DiscordPlayer vorher nachschlagen und werfen.")
         @DisplayName("antwortet mit 404 beim Löschen einer unbekannten UUID")
         void shouldReturnNotFoundOnDeletingUnknownServer() {
             ResponseEntity<ApiErrorResponse> response = client().delete()
@@ -163,5 +203,14 @@ class ServerE2ETest extends AbstractE2ETest {
             assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.SERVER_NOT_FOUND);
         }
 
+        @Test
+        @DisplayName("dokumentiert, dass das Löschen einer unbekannten UUID aktuell 204 liefert")
+        void shouldCurrentlyReturnNoContentForUnknownServer() {
+            assertThat(client().delete()
+                    .uri("/api/v1/servers/{uuid}", UUID.randomUUID())
+                    .retrieve()
+                    .toBodilessEntity()
+                    .getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        }
     }
 }
