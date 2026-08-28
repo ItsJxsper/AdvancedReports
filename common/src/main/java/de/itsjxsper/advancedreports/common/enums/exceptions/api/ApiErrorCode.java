@@ -62,6 +62,10 @@ public enum ApiErrorCode {
      */
     SCREENSHOT_STORAGE_ERROR,
     /**
+     * The screenshot upload was never completed, so the object is missing in storage.
+     */
+    SCREENSHOT_UPLOAD_INCOMPLETE,
+    /**
      * The report was not found.
      */
     REPORT_NOT_FOUND,

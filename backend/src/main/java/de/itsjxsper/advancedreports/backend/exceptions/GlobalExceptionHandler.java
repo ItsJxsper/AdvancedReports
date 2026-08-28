@@ -10,6 +10,7 @@ import de.itsjxsper.advancedreports.backend.ratelimit.exceptions.RateLimitExceed
 import de.itsjxsper.advancedreports.backend.reports.exceptions.ReportNotFoundException;
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotStorageException;
+import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotUploadIncompleteException;
 import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundException;
 import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
@@ -230,6 +231,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleScreenshotStorageException(ScreenshotStorageException e) {
         log.error("ScreenshotStorageException", e);
         return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, ApiErrorCode.SCREENSHOT_STORAGE_ERROR, e.getMessage());
+    }
+
+    /**
+     * The client asked to use a screenshot whose bytes never reached S3 - a state conflict, not a
+     * missing resource, so the caller can retry the upload against the same object key.
+     */
+    @ExceptionHandler(ScreenshotUploadIncompleteException.class)
+    public ResponseEntity<ApiErrorResponse> handleScreenshotUploadIncompleteException(ScreenshotUploadIncompleteException e) {
+        log.warn("ScreenshotUploadIncompleteException: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.CONFLICT, ApiErrorCode.SCREENSHOT_UPLOAD_INCOMPLETE, e.getMessage());
     }
 
     @ExceptionHandler(ReportNotFoundException.class)
