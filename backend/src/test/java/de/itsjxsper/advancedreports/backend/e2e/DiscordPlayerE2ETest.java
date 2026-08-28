@@ -21,23 +21,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * End-to-end coverage for linking a Minecraft player to a Discord account.
  * <p>
- * Everything that writes is disabled: the {@code discord_player_entity} table does not exist, because
- * Hibernate's generated DDL for it is rejected by Postgres. See the class-level {@code @Disabled} on
- * {@code DiscordPlayerRepositoryIT} for the full analysis. The read paths that only need to produce a
- * 404 still run, since they never touch the table.
+ * Both defects that used to block this class are fixed: the {@code discord_player_entity} table can
+ * be created again, and the writing service methods no longer inherit the class-level read-only
+ * transaction that silently swallowed every insert.
  */
 @DisplayName("E2E: Discord-Verknüpfung")
 class DiscordPlayerE2ETest extends AbstractE2ETest {
-
-    private static final String READ_ONLY_TX_BUG = """
-            BUG (blockierend, ganze Domain): DiscordPlayerService ist auf Klassenebene mit \
-            @Transactional(readOnly = true) annotiert, und keine der schreibenden Methoden \
-            ueberschreibt das - weder #createDiscordPlayer noch #updateDiscordPlayer noch die \
-            beiden delete-Methoden. SimpleJpaRepository tritt der bestehenden read-only-Transaktion \
-            bei, Hibernate setzt darin FlushMode.MANUAL, und das INSERT/UPDATE/DELETE wird nie \
-            geflusht. Der Endpunkt antwortet mit 201 und einem vollstaendig befuellten DTO, \
-            gespeichert wird aber nichts. Fix: @Transactional an den schreibenden Methoden \
-            ergaenzen. Siehe discord/service/DiscordPlayerService.java:19.""";
 
     private DiscordPlayerDto linkPayload(UUID playerUuid, Long discordUserId) {
         return new DiscordPlayerDto(null, playerUuid, discordUserId);
@@ -48,7 +37,6 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
     class Linking {
 
         @Test
-        @Disabled(READ_ONLY_TX_BUG)
         @DisplayName("verknüpft einen Spieler mit einem Discord-Account")
         void shouldLinkPlayer() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -67,7 +55,6 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @Disabled(READ_ONLY_TX_BUG)
         @DisplayName("löst die Verknüpfung über die Spieler-UUID auf")
         void shouldResolveByPlayerUuid() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -89,7 +76,6 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @Disabled(READ_ONLY_TX_BUG)
         @DisplayName("löscht die Verknüpfung, ohne den Spieler zu entfernen")
         void shouldDeleteLinkOnly() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -116,30 +102,6 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
                     .getStatusCode()).isEqualTo(HttpStatus.OK);
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass das Verknüpfen 201 meldet, aber nichts speichert")
-        void shouldCurrentlyReportSuccessWithoutPersisting() {
-            PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
-
-            ResponseEntity<DiscordPlayerDto> created = client().post()
-                    .uri("/api/v1/discord-players")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(linkPayload(player.playerUUID(), 217476470391308288L))
-                    .retrieve()
-                    .toEntity(DiscordPlayerDto.class);
-
-            // Die Tabelle entsteht inzwischen, das INSERT wird aber in der read-only-Transaktion
-            // nie geflusht: der Aufrufer bekommt ein vollstaendiges DTO und glaubt an Erfolg.
-            assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-
-            assertThat(client().get()
-                    .uri("/api/v1/discord-players/player/{uuid}", player.playerUUID())
-                    .retrieve()
-                    .onStatus(status -> status.value() == 404, (req, res) -> {
-                    })
-                    .toBodilessEntity()
-                    .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        }
     }
 
     @Nested
