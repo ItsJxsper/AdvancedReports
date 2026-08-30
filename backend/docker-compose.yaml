@@ -18,7 +18,7 @@ services:
     volumes:
       - redis_data:/data
   rabbitmq:
-    image: rabbitmq:latest
+    image: rabbitmq:management
     container_name: rabbitmq
     ports:
       - "5672:5672"

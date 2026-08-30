@@ -3,7 +3,6 @@ package de.itsjxsper.advancedreports.backend.discord.controller;
 import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFoundException;
 import de.itsjxsper.advancedreports.backend.discord.service.DiscordPlayerService;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,7 @@ class DiscordPlayerControllerTest {
     private static final Long DISCORD_PLAYER_ID = 5L;
 
     /**
-     * A realistic Discord snowflake — 18 digits, far beyond what {@code @Max(18)} permits.
+     * A realistic Discord snowflake — 18 digits.
      */
     private static final Long REAL_SNOWFLAKE = 217476470391308288L;
     private final DiscordPlayerDto discordPlayerDto =
@@ -74,11 +73,6 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @Disabled("BUG: @Max(18) auf discordUserId begrenzt den *Wert* auf 18, nicht die Stellenzahl "
-                + "(common DiscordPlayerDto und discord/data/entity/DiscordPlayerEntity.java:18). "
-                + "Discord-IDs sind 17-19-stellige Snowflakes, also wird jede echte Discord-ID von "
-                + "der Bean Validation abgelehnt - die Domain ist mit realen Daten unbenutzbar. "
-                + "Gemeint war vermutlich @Digits(integer = 19, fraction = 0).")
         @DisplayName("akzeptiert eine echte, 18-stellige Discord-Snowflake")
         void shouldAcceptRealSnowflake() throws Exception {
             DiscordPlayerDto dto = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, REAL_SNOWFLAKE);
@@ -89,18 +83,6 @@ class DiscordPlayerControllerTest {
                             .content(objectMapper.writeValueAsString(dto)))
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.discordUserId").value(REAL_SNOWFLAKE));
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass eine echte Discord-Snowflake aktuell mit 400 abgelehnt wird")
-        void shouldCurrentlyRejectRealSnowflake() throws Exception {
-            DiscordPlayerDto dto = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, REAL_SNOWFLAKE);
-
-            mockMvc.perform(post("/api/v1/discord-players")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
         }
     }
 

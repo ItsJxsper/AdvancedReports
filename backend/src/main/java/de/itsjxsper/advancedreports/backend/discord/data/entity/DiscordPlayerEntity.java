@@ -2,11 +2,9 @@ package de.itsjxsper.advancedreports.backend.discord.data.entity;
 
 import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Digits;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -22,9 +20,9 @@ public class DiscordPlayerEntity {
     @JoinColumn(name = "player_entity_player_uuid", nullable = false, unique = true)
     private PlayerEntity playerEntity;
 
-    @Max(18)
+    // Discord-Snowflakes sind 17-19-stellig und gehoeren als Long in eine bigint-Spalte.
+    @Digits(integer = 19, fraction = 0)
     @Column(name = "discord_user_id")
-    @JdbcTypeCode(SqlTypes.LONG32NVARCHAR)
     private Long discordUserId;
 
 }

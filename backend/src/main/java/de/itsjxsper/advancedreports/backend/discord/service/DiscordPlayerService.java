@@ -24,6 +24,7 @@ public class DiscordPlayerService {
     private final DiscordPlayerMapper discordPlayerMapper;
 
 
+    @Transactional
     public DiscordPlayerDto createDiscordPlayer(DiscordPlayerDto discordPlayerDto) {
         log.debug("Creating DiscordPlayer with data: {}", discordPlayerDto);
 
@@ -59,6 +60,7 @@ public class DiscordPlayerService {
         return this.discordPlayerMapper.toDto(discordPlayerEntity);
     }
 
+    @Transactional
     public DiscordPlayerDto updateDiscordPlayer(DiscordPlayerDto discordPlayerDto) {
         log.debug("Updating DiscordPlayer with id={}", discordPlayerDto.id());
 
@@ -75,6 +77,7 @@ public class DiscordPlayerService {
         return this.discordPlayerMapper.toDto(savedEntity);
     }
 
+    @Transactional
     public void deleteDiscordPlayerByDiscordId(Long discordPlayerId) {
         log.debug("Deleting DiscordPlayer with id={}", discordPlayerId);
 
@@ -85,6 +88,7 @@ public class DiscordPlayerService {
         log.debug("Deleted DiscordPlayer with id={}", discordPlayerId);
     }
 
+    @Transactional
     public void deleteDiscordPlayerByPlayerUUID(UUID playerUUID) {
         log.debug("Deleting DiscordPlayer for playerUUID={}", playerUUID);
 
