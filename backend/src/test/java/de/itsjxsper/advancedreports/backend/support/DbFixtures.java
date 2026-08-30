@@ -7,10 +7,10 @@ import java.sql.SQLException;
 import java.util.UUID;
 
 /**
- * Inserts rows that cannot be created through the REST API.
+ * Inserts server rows directly, bypassing the REST API.
  * <p>
- * Only used for servers: {@code POST /api/v1/servers} is currently unusable (see
- * {@code ServerE2ETest}), yet reports reference a server. Going through SQL here keeps the report
+ * Only used for servers: seeding them over REST would couple unrelated tests to the server slice (see
+ * {@code ServerE2ETest}), and reports reference a server. Going through SQL here keeps the report
  * end-to-end tests meaningful instead of blocking them on an unrelated defect.
  */
 public final class DbFixtures {

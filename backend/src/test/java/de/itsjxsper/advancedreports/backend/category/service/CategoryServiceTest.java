@@ -3,7 +3,9 @@ package de.itsjxsper.advancedreports.backend.category.service;
 import de.itsjxsper.advancedreports.backend.category.data.entity.CategoryEntity;
 import de.itsjxsper.advancedreports.backend.category.data.repository.CategoryRepository;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyExistException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryInUseException;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
+import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import de.itsjxsper.advancedreports.backend.category.mapper.CategoryMapper;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryReportCountDto;
@@ -26,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -164,7 +167,7 @@ class CategoryServiceTest {
         @Test
         @DisplayName("löscht eine bestehende Kategorie")
         void shouldDeleteCategory() {
-            when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
 
             categoryService.deleteCategory(1L);
 
@@ -172,9 +175,21 @@ class CategoryServiceTest {
         }
 
         @Test
+        @DisplayName("wirft CategoryInUseException, wenn noch Reports an der Kategorie haengen")
+        void shouldRejectDeletingCategoryWithReports() {
+            categoryEntity.getReportsEntities().add(new ReportsEntity());
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
+
+            assertThatThrownBy(() -> categoryService.deleteCategory(1L))
+                    .isInstanceOf(CategoryInUseException.class);
+
+            verify(categoryRepository, never()).delete(any());
+        }
+
+        @Test
         @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
         void shouldThrowWhenCategoryNotFound() {
-            when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.deleteCategory(1L))
                     .isInstanceOf(CategoryNotFoundException.class);
@@ -188,20 +203,21 @@ class CategoryServiceTest {
     class GetCategory {
 
         @Test
-        @DisplayName("liefert eine Kategorie mit Reports zurück")
+        @DisplayName("liefert eine Kategorie ohne den Report-Graphen zurück")
         void shouldReturnCategory() {
-            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
             when(categoryMapper.toDto(categoryEntity)).thenReturn(categoryDto);
 
             CategoryDto result = categoryService.getCategory(1L);
 
             assertThat(result).isEqualTo(categoryDto);
+            verify(categoryRepository, never()).findWithReportsById(anyLong());
         }
 
         @Test
         @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
         void shouldThrowWhenNotFound() {
-            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
+            when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.getCategory(1L))
                     .isInstanceOf(CategoryNotFoundException.class);

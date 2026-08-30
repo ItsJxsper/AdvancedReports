@@ -144,17 +144,14 @@ class ServerServiceTest {
         @Test
         @DisplayName("löscht den Server zur UUID")
         void shouldDeleteServer() {
+            when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.of(serverEntity));
+
             serverService.deleteServer(SERVER_UUID);
 
-            verify(serverRepository).deleteById(SERVER_UUID);
+            verify(serverRepository).delete(serverEntity);
         }
 
         @Test
-        @Disabled("BUG: ServerService#deleteServer (server/service/ServerService.java:71) ruft direkt "
-                + "deleteById und prueft die Existenz nicht. Ein DELETE auf eine unbekannte "
-                + "Server-UUID meldet daher 204 No Content statt 404 SERVER_NOT_FOUND, obwohl jede "
-                + "andere Delete-Operation im Projekt (Category, Player, Report, DiscordPlayer) "
-                + "vorher nachschlaegt und wirft.")
         @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
         void shouldThrowWhenServerNotFound() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.empty());
@@ -181,9 +178,21 @@ class ServerServiceTest {
         @Test
         @DisplayName("gibt die Anzahl der Reports eines Servers zurück")
         void shouldCountReportsForServer() {
+            when(serverRepository.existsById(SERVER_UUID)).thenReturn(true);
             when(serverRepository.countReportsByServerUuid(SERVER_UUID)).thenReturn(5L);
 
             assertThat(serverService.countReportsForServer(SERVER_UUID)).isEqualTo(5L);
+        }
+
+        @Test
+        @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
+        void shouldThrowWhenCountingReportsForUnknownServer() {
+            when(serverRepository.existsById(SERVER_UUID)).thenReturn(false);
+
+            assertThatThrownBy(() -> serverService.countReportsForServer(SERVER_UUID))
+                    .isInstanceOf(ServerNotFoundException.class);
+
+            verify(serverRepository, never()).countReportsByServerUuid(any());
         }
     }
 }

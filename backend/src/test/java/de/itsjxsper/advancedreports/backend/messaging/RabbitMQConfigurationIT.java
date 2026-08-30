@@ -32,7 +32,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DisplayName("RabbitMQ-Topologie")
 class RabbitMQConfigurationIT extends AbstractE2ETest {
 
-    @Autowired
     private RabbitAdmin rabbitAdmin;
 
     @Autowired
@@ -46,8 +45,8 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
      * Empties the plugin queue before a routing assertion.
      * <p>
      * Retries on {@link AmqpException} on purpose: the first operation on a fresh channel triggers
-     * RabbitAdmin's declaration pass, which fails with a 404 for the undeclared {@code notify.discord}
-     * queue and takes the channel down with it. See {@code shouldCurrentlyNotDeclareDiscordQueue}.
+     * RabbitAdmin s declaration pass, and a channel lost during that pass has to be replaced before
+     * the next attempt can succeed.
      */
     private void drainPluginQueue() {
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -95,28 +94,11 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
         }
 
         @Test
-        @Disabled("BUG: RabbitMQConfiguration#notifyDiscordQueue() fehlt die @Bean-Annotation "
-                + "(config/RabbitMQConfiguration.java:44). Die Methode wird nur noch direkt aus "
-                + "discordBinding() aufgerufen, daher kennt RabbitAdmin die Queue nicht und legt sie "
-                + "nie auf dem Broker an. Folgen: (1) notify.discord existiert nicht, jedes "
-                + "report.created/report.updated-Event geht fuer den Discord-Bot verloren, inklusive "
-                + "des Dead-Letter-Pfads, der genau das abfangen sollte. (2) Schwerwiegender: die "
-                + "Deklaration von discordBinding scheitert mit '404 NOT_FOUND - no queue "
-                + "notify.discord' und reisst den AMQP-Kanal mit, auf dem RabbitAdmin gerade "
-                + "deklariert - siehe shouldPoisonTheChannelForUnrelatedOperations. Fix: @Bean "
-                + "ergaenzen.")
         @DisplayName("deklariert notify.discord")
         void shouldDeclareDiscordQueue() {
             assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD)).isNotNull();
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass notify.discord aktuell nicht existiert")
-        void shouldCurrentlyNotDeclareDiscordQueue() {
-            assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD))
-                    .as("Ist-Verhalten: die Queue fehlt, weil an notifyDiscordQueue() das @Bean fehlt")
-                    .isNull();
-        }
 
         @Test
         @DisplayName("deklariert den Fanout-Exchange und das Dead-Letter-Exchange")

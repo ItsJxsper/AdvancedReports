@@ -44,11 +44,16 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     //implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    // Bean Validation kam bisher nur zufaellig ueber springdoc-openapi herein.
+    // Ohne explizite Deklaration verschwindet jedes @Valid still, sobald sich
+    // die Doku-Abhaengigkeit aendert.
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("software.amazon.awssdk:s3:2.42.35")
     implementation("org.mapstruct:mapstruct:1.6.3")
     implementation("com.bucket4j:bucket4j-redis:8.10.1")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     // The application talks to PostgreSQL but shipped without a JDBC driver, so the
     // datasource could never be created. Required at runtime, not just in tests.
     runtimeOnly("org.postgresql:postgresql")
@@ -127,8 +132,18 @@ tasks.named("check") {
 
 // unitTest und integrationTest schreiben getrennte .exec-Dateien - der Report fasst
 // beide zusammen, damit die Abdeckung nicht pro Stage auseinanderfaellt.
+// Wichtig: nur build/jacoco als Input registrieren, nicht das ganze build-Verzeichnis -
+// sonst haelt Gradle jeden Output von unitTest fuer eine undeklarierte Abhaengigkeit.
 tasks.jacocoTestReport {
-    executionData(fileTree(layout.buildDirectory).include("jacoco/*.exec"))
+    // unitTest liefert die Basisabdeckung und laeuft ohne Docker - deshalb dependsOn.
+    dependsOn(tasks.named("unitTest"))
+    // integrationTest ist optional (braucht Docker): nur Reihenfolge erzwingen, damit
+    // 'integrationTest jacocoTestReport' in einem Aufruf funktioniert.
+    mustRunAfter(tasks.named("integrationTest"))
+
+    executionData.setFrom(
+        layout.buildDirectory.dir("jacoco").map { dir -> fileTree(dir) { include("*.exec") } }
+    )
 
     reports {
         xml.required = true

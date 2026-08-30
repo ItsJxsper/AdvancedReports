@@ -16,7 +16,9 @@ import java.util.UUID;
 @Table(name = "server_entity")
 public class ServerEntity {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    // Kein @GeneratedValue: ein Minecraft-Server registriert sich unter seiner eigenen,
+    // konfigurierten UUID. Ein Generator wuerde die mitgeschickte UUID beim Persistieren
+    // ueberschreiben, obwohl ServerDto#serverUUID @NotNull ist und der Client sie kennt.
     @Column(name = "server_uuid", nullable = false)
     private UUID serverUuid;
 
@@ -26,6 +28,8 @@ public class ServerEntity {
     @Column(name = "port", nullable = false)
     private Integer port;
 
-    @OneToMany(mappedBy = "server", orphanRemoval = true)
+    // Kein orphanRemoval: reports_entity.server ist nullable, ein geloeschter Server haengt seine
+    // Reports daher ab, statt sie mitzureissen.
+    @OneToMany(mappedBy = "server")
     private Set<ReportsEntity> reportsEntitiesEntities = new LinkedHashSet<>();
 }

@@ -40,6 +40,7 @@ public class RabbitMQConfiguration {
                 .build();
     }
 
+    @Bean
     public Queue notifyDiscordQueue() {
         return QueueBuilder
                 .durable(QUEUE_DISCORD)

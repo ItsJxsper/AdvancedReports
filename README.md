@@ -24,7 +24,8 @@ Plugin (Paper)  ──REST──▶  Spring Boot Backend  ──RabbitMQ──�
 **AdvancedReports** is a monorepo for a Minecraft player-reporting system built around a clean **REST vs. RabbitMQ**
 split:
 
-- **REST API** → send and receive *objects* (create a report, fetch data, update status, upload a screenshot)
+- **REST API** → send and receive *objects* (create a report, fetch data, update status, request a presigned screenshot
+  upload URL)
 - **RabbitMQ** → fire lightweight *notifications* after a database write completes (new report ping, status change
   alert, screenshot ready)
 
@@ -61,7 +62,7 @@ All published modules are versioned and published to GitHub Packages under the `
 | Rate limiting    | Bucket4j + Redis (Lettuce-based distributed buckets)                             |
 | Message Broker   | RabbitMQ (Fanout exchange + Dead Letter Queue)                                   |
 | Database         | PostgreSQL (via Spring Data JPA)                                                 |
-| File Storage     | AWS S3 (optional, active only under the `s3` Spring profile)                     |
+| File Storage     | AWS S3 via presigned URLs (optional, only under the `s3` Spring profile)         |
 | Object Mapping   | MapStruct                                                                        |
 | Build            | Gradle (Kotlin DSL), version catalog (`gradle/libs.versions.toml`)               |
 | Local dev stack  | Docker Compose (via Spring Boot's `spring-boot-docker-compose`)                  |
@@ -88,7 +89,7 @@ All published modules are versioned and published to GitHub Packages under the `
 │      │                        └──▶ MapStruct DTO mapping    │
 │      │                                                      │
 │      ├──▶ Rate Limit Aspect (@RateLimited) → Redis/Bucket4j │
-│      ├──▶ Screenshot Service → AWS S3 (profile: s3)         │
+│      ├──▶ Screenshot Service → presigned S3 URLs (s3)       │
 │      └──▶ after successful DB write ──▶ RabbitMQ publish    │
 └──────────────────────────┬──────────────────────────────────┘
                             │ AMQP
@@ -116,7 +117,8 @@ Key points reflected in the current code:
 - RabbitMQ messages use Jackson-based JSON conversion (`JacksonJsonMessageConverter`) and the `RabbitTemplate` is
   configured as **mandatory**, so unroutable messages are surfaced rather than dropped.
 - Screenshot storage via S3 is **opt-in**: `S3Config` only activates under the `s3` Spring profile and only creates the
-  `S3Client` bean if `aws.s3.bucket` is configured.
+  `S3Client` and `S3Presigner` beans if `aws.s3.bucket` is configured. Screenshot bytes never pass through the backend -
+  it only signs short-lived upload/download URLs that clients use against S3 directly.
 
 ---
 
@@ -205,18 +207,57 @@ Links a Minecraft player UUID to a Discord user id.
 
 ### Screenshots — `/api/v1/screenshots`
 
-| Method   | Endpoint                     | Description                                         |
-|----------|------------------------------|-----------------------------------------------------|
-| `GET`    | `/screenshots`               | List screenshots (paginated)                        |
-| `POST`   | `/screenshots`               | Create screenshot metadata                          |
-| `POST`   | `/screenshots/upload`        | Upload a screenshot file (multipart) directly to S3 |
-| `GET`    | `/screenshots/{id}`          | Get screenshot metadata by id                       |
-| `GET`    | `/screenshots/{id}/download` | Download the stored screenshot                      |
-| `PATCH`  | `/screenshots/{id}`          | Update screenshot metadata                          |
-| `DELETE` | `/screenshots/{id}`          | Delete a screenshot                                 |
-| `GET`    | `/screenshots/count`         | Total number of screenshots                         |
+| Method   | Endpoint                         | Description                                             |
+|----------|----------------------------------|---------------------------------------------------------|
+| `GET`    | `/screenshots`                   | List screenshots (paginated)                            |
+| `POST`   | `/screenshots`                   | Create screenshot metadata                              |
+| `POST`   | `/screenshots/upload-url`        | Reserve metadata and return a presigned S3 upload URL   |
+| `POST`   | `/screenshots/{id}/complete`     | Verify the uploaded object in S3 and confirm the upload |
+| `GET`    | `/screenshots/{id}`              | Get screenshot metadata by id                           |
+| `GET`    | `/screenshots/{id}/download-url` | Return a presigned S3 download URL                      |
+| `GET`    | `/screenshots/{id}/download`     | `302` redirect to the presigned download URL            |
+| `PATCH`  | `/screenshots/{id}`              | Update screenshot metadata                              |
+| `DELETE` | `/screenshots/{id}`              | Delete a screenshot (metadata **and** the object in S3) |
+| `GET`    | `/screenshots/count`             | Total number of screenshots                             |
 
-Upload status is tracked as `PENDING` / `SUCCESS` / `FAILED`.
+**Screenshot files never travel through the backend.** It only signs short-lived S3 URLs; the client uploads and
+downloads directly. Uploading is a three-step flow:
+
+```
+1. POST /api/v1/screenshots/upload-url   { originalFilename, contentType, fileSizeBytes }
+   → 201 { screenshotId, s3ObjectKey, uploadUrl, httpMethod, requiredHeaders, expiresAt, uploadStatus: PENDING }
+
+2. PUT <uploadUrl>   body = the file bytes, plus every header in requiredHeaders   (client → S3, directly)
+
+3. POST /api/v1/screenshots/{screenshotId}/complete
+   → 200 ScreenshotDto   the backend HeadObjects the key, stores the real size and content type,
+                         flips PENDING → SUCCESS and publishes screenshot.ready
+   → 409 SCREENSHOT_UPLOAD_INCOMPLETE   the object is not in the bucket; the row is marked FAILED
+```
+
+The declared `fileSizeBytes` is signed into the presigned request as `Content-Length`, so **S3 itself rejects an upload
+whose body length differs**. The backend additionally rejects a declared size of `0` or above
+`aws.s3.max-upload-size-bytes` with `400 ILLEGAL_ARGUMENT`.
+
+Upload status is tracked as `PENDING` (URL issued, not yet confirmed) / `SUCCESS` (verified in S3) / `FAILED`
+(confirmation ran but the object was missing). `/download-url` and `/download` only work once the status is
+`SUCCESS`, and answer `409 SCREENSHOT_UPLOAD_INCOMPLETE` otherwise.
+
+### S3 configuration
+
+Read only under the `s3` profile. `S3Config` creates the `S3Client` and `S3Presigner` beans only if
+`aws.s3.bucket` is set.
+
+| Property                         | Default        | Description                                                       |
+|----------------------------------|----------------|-------------------------------------------------------------------|
+| `aws.s3.bucket`                  | *(empty)*      | Bucket name — required, gates both S3 beans                       |
+| `aws.s3.region`                  | `eu-central-1` | AWS region                                                        |
+| `aws.s3.endpoint-url`            | *(empty)*      | Custom endpoint, e.g. MinIO; enables path-style access            |
+| `aws.s3.access-key`              | *(empty)*      | Static access key; falls back to the AWS default credential chain |
+| `aws.s3.secret-key`              | *(empty)*      | Static secret key                                                 |
+| `aws.s3.presign.upload-expiry`   | `PT15M`        | How long a presigned upload URL stays valid                       |
+| `aws.s3.presign.download-expiry` | `PT15M`        | How long a presigned download URL stays valid                     |
+| `aws.s3.max-upload-size-bytes`   | `10485760`     | Largest file size the backend will sign an upload for             |
 
 ### Servers — `/api/v1/servers`
 
@@ -244,8 +285,9 @@ Current error codes include:
 METHOD_NOT_ALLOWED, METHOD_ARGUMENT_TYPE_MISMATCH, ILLEGAL_ARGUMENT, UNSUPPORTED_OPERATION,
 MISSING_REQUEST_PARAMETER, PLAYER_ALREADY_EXISTS, PLAYER_NOT_FOUND, DISCORD_USER_NOT_FOUND,
 CATEGORY_ALREADY_EXISTS, CATEGORY_NOT_FOUND, SERVER_NOT_FOUND, SCREENSHOT_NOT_FOUND,
-SCREENSHOT_STORAGE_ERROR, REPORT_NOT_FOUND, RATE_LIMIT_EXCEEDED, MISSING_HEADER,
-INTERNAL_SERVER_ERROR
+SCREENSHOT_STORAGE_ERROR, SCREENSHOT_UPLOAD_INCOMPLETE, REPORT_NOT_FOUND, RATE_LIMIT_EXCEEDED,
+MISSING_HEADER, INTERNAL_SERVER_ERROR, VALIDATION_FAILED, MALFORMED_REQUEST,
+UNSUPPORTED_MEDIA_TYPE, NOT_ACCEPTABLE, RESOURCE_NOT_FOUND, CONFLICT, PAYLOAD_TOO_LARGE
 ```
 
 ---
@@ -255,11 +297,11 @@ INTERNAL_SERVER_ERROR
 Spring Boot publishes a lightweight event to the `reports.notify` fanout exchange **after every successful database
 write**. No full objects are sent over RabbitMQ — consumers fetch full details via REST if they need them.
 
-| Event              | Trigger                             | Consumers           |
-|--------------------|-------------------------------------|---------------------|
-| `report.created`   | After a report is created           | Plugin, Discord Bot |
-| `report.updated`   | After a report's status changes     | Plugin, Discord Bot |
-| `screenshot.ready` | After a screenshot upload completes | Discord Bot         |
+| Event              | Trigger                                | Consumers           |
+|--------------------|----------------------------------------|---------------------|
+| `report.created`   | After a report is created              | Plugin, Discord Bot |
+| `report.updated`   | After a report's status changes        | Plugin, Discord Bot |
+| `screenshot.ready` | After a screenshot upload is confirmed | Discord Bot         |
 
 The `notify.discord` queue is dead-lettered to `reports.dlx` / `notify.discord.dlq` on delivery failure, so a Discord
 outage doesn't lose events.
@@ -336,7 +378,7 @@ Based on the current state of the `develop` branch:
 
 - [x] `common` module — shared DTOs, enums, exceptions
 - [x] `backend` module — REST API, PostgreSQL persistence, Redis-backed rate limiting, RabbitMQ publishing with DLQ,
-  optional S3 screenshot storage
+  optional S3 screenshot storage via presigned URLs
 - [ ] `plugin` module — PaperMC in-game commands, cooldowns, admin GUI, RabbitMQ consumer
 - [ ] `proxy` module — Velocity network-wide integration
 - [ ] `api` module — shared client library for plugin/proxy REST calls

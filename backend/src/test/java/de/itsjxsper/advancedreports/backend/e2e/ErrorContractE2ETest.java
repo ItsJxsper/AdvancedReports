@@ -93,12 +93,6 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("BUG: GET /api/v1/discord-players/{id} liefert 500 statt 404, "
-                + "weil die Tabelle discord_player_entity nicht existiert - Hibernates generiertes DDL "
-                + "wird von Postgres abgelehnt ('operator does not exist: text <= integer'). Schon das "
-                + "findById scheitert mit einer SQLGrammarException, bevor die "
-                + "DiscordUserNotFoundException geworfen werden kann. Vollstaendige Analyse im "
-                + "@Disabled von DiscordPlayerRepositoryIT.")
         @DisplayName("eine unbekannte Discord-Verknüpfung wird clientseitig als NotFound erkannt")
         void shouldParseDiscordUserNotFound() {
             ApiException exception = callAndParse("/api/v1/discord-players/9999");
@@ -148,6 +142,32 @@ class ErrorContractE2ETest extends AbstractE2ETest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
             assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.CATEGORY_ALREADY_EXISTS);
             assertThat(exception.isNotFound()).isFalse();
+        }
+
+        @Test
+        @DisplayName("ein nie hochgeladener Screenshot wird als SCREENSHOT_UPLOAD_INCOMPLETE geliefert")
+        void shouldParseScreenshotUploadIncomplete() {
+            var uploadUrl = client().post()
+                    .uri("/api/v1/screenshots/upload-url")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadRequestDto(
+                            "screenshot.png", "image/png", 1024L))
+                    .retrieve()
+                    .toEntity(de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadUrlDto.class)
+                    .getBody();
+
+            ResponseEntity<String> response = client().post()
+                    .uri("/api/v1/screenshots/{id}/complete", uploadUrl.screenshotId())
+                    .retrieve()
+                    .toEntity(String.class);
+
+            ApiException exception = ApiException.fromHttpResponse(
+                    response.getStatusCode().value(), response.getBody(), OBJECT_MAPPER);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.SCREENSHOT_UPLOAD_INCOMPLETE);
+            assertThat(exception.isNotFound()).isFalse();
+            assertThat(exception.isRateLimited()).isFalse();
         }
     }
 

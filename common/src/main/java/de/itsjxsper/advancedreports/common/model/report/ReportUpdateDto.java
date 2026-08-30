@@ -1,13 +1,15 @@
 package de.itsjxsper.advancedreports.common.model.report;
 
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
-import jakarta.validation.constraints.NotNull;
-
 import java.io.Serializable;
 import java.util.UUID;
 
 /**
- * Data Transfer Object for updating a report.
+ * Payload for partially updating an existing report.
+ * <p>
+ * Every field is optional on purpose: an omitted field means "leave as is". This record used to
+ * double as the create payload, which forced {@code @NotNull} onto {@code reporterUUID} and made a
+ * status-only PATCH impossible. Creating goes through {@link ReportCreateDto} now.
  *
  * @param reporterUUID  the UUID of the player who created the report
  * @param reportedUUID  the UUID of the player who was reported
@@ -21,7 +23,7 @@ import java.util.UUID;
  * @param screenshotId  the identifier of the associated screenshot
  */
 public record ReportUpdateDto(
-        @NotNull UUID reporterUUID,
+        UUID reporterUUID,
         UUID reportedUUID,
         Long categoryId,
         String reason,

@@ -17,28 +17,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@Disabled("""
-        BUG (blockierend, ganze Domain): Die Tabelle discord_player_entity kann von Hibernate nicht \
-        angelegt werden. DiscordPlayerEntity#discordUserId kombiniert \
-        @JdbcTypeCode(SqlTypes.LONG32NVARCHAR) - die Spalte wird dadurch zu 'text' - mit @Max(18), \
-        woraus Hibernate einen numerischen CHECK generiert. Das erzeugte DDL lautet
-        
-          create table discord_player_entity (
-            id bigint not null,
-            player_entity_player_uuid uuid not null unique,
-            discord_user_id text check ((discord_user_id<=18)),
-            primary key (id))
-        
-        und Postgres lehnt es ab: 'ERROR: operator does not exist: text <= integer'. Die Tabelle \
-        existiert daher nie, jeder Zugriff endet in 'relation "discord_player_entity" does not exist'. \
-        Zusaetzlich schlaegt @Max(18) schon zur Persist-Zeit als \
-        jakarta.validation.ConstraintViolationException zu, sobald eine echte Discord-Snowflake \
-        gespeichert werden soll.
-        
-        Fix: @JdbcTypeCode entfernen (ein Long gehoert in eine bigint-Spalte) und @Max(18) durch \
-        @Digits(integer = 19, fraction = 0) ersetzen oder streichen. Siehe \
-        discord/data/entity/DiscordPlayerEntity.java:18-21. Nach dem Fix diese Klasse wieder \
-        aktivieren.""")
 @DisplayName("DiscordPlayerRepository")
 class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
 
@@ -89,7 +67,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
             entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 17L));
 
             assertThatThrownBy(() ->
-                    entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 18L)))
+                    discordPlayerRepository.saveAndFlush(TestDataFactory.discordPlayer(player, 18L)))
                     .isInstanceOf(DataIntegrityViolationException.class);
         }
 
@@ -98,8 +76,6 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
         void shouldPersistRealSnowflake() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
 
-            // Auf DB-Ebene passt die Snowflake problemlos - blockiert wird sie erst von der
-            // Bean Validation (@Max(18)), siehe DiscordPlayerControllerTest.
             DiscordPlayerEntity saved =
                     entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 217476470391308288L));
             entityManager.clear();
@@ -115,12 +91,6 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
     class Deleting {
 
         @Test
-        @Disabled("BUG: DiscordPlayerEntity#playerEntity ist mit "
-                + "@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true) gemappt "
-                + "(discord/data/entity/DiscordPlayerEntity.java:14). Das Loeschen einer "
-                + "Discord-Verknuepfung reisst damit den Minecraft-Spieler mit - und ueber dessen "
-                + "Reports potenziell weitere Daten. Die Verknuepfung ist die abhaengige Seite und "
-                + "darf den Spieler nicht besitzen; erwartet wird cascade = {} ohne orphanRemoval.")
         @DisplayName("löscht nur die Verknüpfung, nicht den Spieler")
         void shouldNotDeletePlayerWithLink() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
@@ -137,18 +107,5 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
                     .isNotNull();
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass das Löschen der Verknüpfung aktuell den Spieler mitlöscht")
-        void shouldCurrentlyDeletePlayerToo() {
-            PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
-            DiscordPlayerEntity link =
-                    entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 17L));
-
-            discordPlayerRepository.delete(link);
-            entityManager.flush();
-            entityManager.clear();
-
-            assertThat(entityManager.find(PlayerEntity.class, PLAYER_UUID)).isNull();
-        }
     }
 }
