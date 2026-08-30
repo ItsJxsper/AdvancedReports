@@ -132,8 +132,18 @@ tasks.named("check") {
 
 // unitTest und integrationTest schreiben getrennte .exec-Dateien - der Report fasst
 // beide zusammen, damit die Abdeckung nicht pro Stage auseinanderfaellt.
+// Wichtig: nur build/jacoco als Input registrieren, nicht das ganze build-Verzeichnis -
+// sonst haelt Gradle jeden Output von unitTest fuer eine undeklarierte Abhaengigkeit.
 tasks.jacocoTestReport {
-    executionData(fileTree(layout.buildDirectory).include("jacoco/*.exec"))
+    // unitTest liefert die Basisabdeckung und laeuft ohne Docker - deshalb dependsOn.
+    dependsOn(tasks.named("unitTest"))
+    // integrationTest ist optional (braucht Docker): nur Reihenfolge erzwingen, damit
+    // 'integrationTest jacocoTestReport' in einem Aufruf funktioniert.
+    mustRunAfter(tasks.named("integrationTest"))
+
+    executionData.setFrom(
+        layout.buildDirectory.dir("jacoco").map { dir -> fileTree(dir) { include("*.exec") } }
+    )
 
     reports {
         xml.required = true
