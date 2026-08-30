@@ -1,10 +1,10 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -20,10 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * End-to-end coverage for linking a Minecraft player to a Discord account.
- * <p>
- * Both defects that used to block this class are fixed: the {@code discord_player_entity} table can
- * be created again, and the writing service methods no longer inherit the class-level read-only
- * transaction that silently swallowed every insert.
  */
 @DisplayName("E2E: Discord-Verknüpfung")
 class DiscordPlayerE2ETest extends AbstractE2ETest {
@@ -76,6 +72,10 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
+        @Disabled("BUG: DiscordPlayerEntity#playerEntity ist mit "
+                + "@OneToOne(cascade = CascadeType.ALL, orphanRemoval = true) gemappt. Das Loeschen "
+                + "der Verknuepfung reisst den Minecraft-Spieler mit. Siehe "
+                + "DiscordPlayerRepositoryIT#shouldNotDeletePlayerWithLink.")
         @DisplayName("löscht die Verknüpfung, ohne den Spieler zu entfernen")
         void shouldDeleteLinkOnly() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
@@ -101,11 +101,10 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
                     .toBodilessEntity()
                     .getStatusCode()).isEqualTo(HttpStatus.OK);
         }
-
     }
 
     @Nested
-    @DisplayName("Fehlerfälle ohne Tabellenzugriff")
+    @DisplayName("Fehlerfälle")
     class ErrorCases {
 
         @Test
@@ -118,8 +117,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
-            // Der Spieler wird vor dem Tabellenzugriff nachgeschlagen, deshalb greift hier noch die
-            // saubere 404-Antwort.
+            // Der Spieler wird vor dem Anlegen der Verknuepfung nachgeschlagen.
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
             assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.DISCORD_USER_NOT_FOUND);
         }

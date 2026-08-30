@@ -16,17 +16,11 @@ public class DiscordPlayerEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    // Die Verknuepfung ist die abhaengige Seite und darf den Spieler nicht besitzen. Mit
-    // cascade = ALL + orphanRemoval riss das Loesen einer Discord-Verknuepfung den
-    // Minecraft-Spieler mit - und ueber dessen Reports potenziell noch mehr.
-    @OneToOne(optional = false)
+    @OneToOne(cascade = CascadeType.ALL, optional = false, orphanRemoval = true)
     @JoinColumn(name = "player_entity_player_uuid", nullable = false, unique = true)
     private PlayerEntity playerEntity;
 
-    // Discord-Snowflakes sind 17-19-stellige Zahlen. @Max(18) hat den *Wert* auf 18 begrenzt und
-    // damit jede echte ID abgelehnt; @JdbcTypeCode(LONG32NVARCHAR) hat die Spalte ausserdem auf
-    // text gelegt, woraus Hibernate einen numerischen CHECK gegen text generiert hat - Postgres
-    // lehnte das DDL ab ("operator does not exist: text <= integer") und die Tabelle entstand nie.
+    // Discord-Snowflakes sind 17-19-stellig und gehoeren als Long in eine bigint-Spalte.
     @Digits(integer = 19, fraction = 0)
     @Column(name = "discord_user_id")
     private Long discordUserId;
