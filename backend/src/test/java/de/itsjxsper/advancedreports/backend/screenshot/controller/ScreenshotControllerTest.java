@@ -1,11 +1,15 @@
 package de.itsjxsper.advancedreports.backend.screenshot.controller;
 
-import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotStorageException;
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
+import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotStorageException;
+import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotUploadIncompleteException;
 import de.itsjxsper.advancedreports.backend.screenshot.service.ScreenshotService;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDownloadUrlDto;
 import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadRequestDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadUrlDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,13 +18,14 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -35,9 +40,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ScreenshotControllerTest {
 
     private static final String OBJECT_KEY = "screenshots/2026-01-01/abc-screenshot.png";
+    private static final Instant EXPIRES_AT = Instant.parse("2026-01-01T00:15:00Z");
     private final ScreenshotDto screenshotDto = new ScreenshotDto(9L,
             "https://example.invalid/" + OBJECT_KEY, OBJECT_KEY, "screenshot.png",
             "image/png", 1024L, UploadStatus.SUCCESS);
+    private final ScreenshotDownloadUrlDto downloadUrlDto = new ScreenshotDownloadUrlDto(9L,
+            "https://example.invalid/presigned-get", "screenshot.png", "image/png", EXPIRES_AT);
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -81,33 +89,94 @@ class ScreenshotControllerTest {
     }
 
     @Nested
-    @DisplayName("POST /api/v1/screenshots/upload")
-    class UploadScreenshot {
+    @DisplayName("POST /api/v1/screenshots/upload-url")
+    class RequestUploadUrl {
+
+        private final ScreenshotUploadRequestDto request =
+                new ScreenshotUploadRequestDto("screenshot.png", "image/png", 1024L);
 
         @Test
-        @DisplayName("liefert 201 mit den Metadaten des hochgeladenen Bildes")
-        void shouldUploadScreenshot() throws Exception {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file", "screenshot.png", "image/png", "png-bytes".getBytes());
-            when(screenshotService.uploadScreenshot(any())).thenReturn(screenshotDto);
+        @DisplayName("liefert 201 mit der presignten Upload-URL und Status PENDING")
+        void shouldReturnUploadUrl() throws Exception {
+            when(screenshotService.requestUpload(any())).thenReturn(new ScreenshotUploadUrlDto(
+                    9L, OBJECT_KEY, "https://example.invalid/presigned-put", "PUT",
+                    Map.of("content-type", "image/png"), EXPIRES_AT, UploadStatus.PENDING));
 
-            mockMvc.perform(multipart("/api/v1/screenshots/upload").file(file))
+            mockMvc.perform(post("/api/v1/screenshots/upload-url")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.originalFilename").value("screenshot.png"))
-                    .andExpect(jsonPath("$.contentType").value("image/png"));
+                    .andExpect(jsonPath("$.screenshotId").value(9))
+                    .andExpect(jsonPath("$.uploadUrl").value("https://example.invalid/presigned-put"))
+                    .andExpect(jsonPath("$.httpMethod").value("PUT"))
+                    .andExpect(jsonPath("$.requiredHeaders['content-type']").value("image/png"))
+                    .andExpect(jsonPath("$.uploadStatus").value("PENDING"));
+        }
+
+        @Test
+        @DisplayName("liefert 400 ILLEGAL_ARGUMENT, wenn die Datei zu groß ist")
+        void shouldReturnBadRequestForOversizedFile() throws Exception {
+            when(screenshotService.requestUpload(any()))
+                    .thenThrow(new IllegalArgumentException("Screenshot file size 99 exceeds the maximum of 10 bytes"));
+
+            mockMvc.perform(post("/api/v1/screenshots/upload-url")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("ILLEGAL_ARGUMENT"));
         }
 
         @Test
         @DisplayName("liefert 503 SCREENSHOT_STORAGE_ERROR, wenn S3 nicht konfiguriert ist")
         void shouldReturnServiceUnavailableOnStorageError() throws Exception {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file", "screenshot.png", "image/png", "png-bytes".getBytes());
-            when(screenshotService.uploadScreenshot(any()))
+            when(screenshotService.requestUpload(any()))
                     .thenThrow(new ScreenshotStorageException("AWS S3 is not configured"));
 
-            mockMvc.perform(multipart("/api/v1/screenshots/upload").file(file))
+            mockMvc.perform(post("/api/v1/screenshots/upload-url")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isServiceUnavailable())
                     .andExpect(jsonPath("$.code").value("SCREENSHOT_STORAGE_ERROR"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/v1/screenshots/{screenshotId}/complete")
+    class CompleteUpload {
+
+        @Test
+        @DisplayName("liefert 200 mit den bestätigten Metadaten")
+        void shouldCompleteUpload() throws Exception {
+            when(screenshotService.completeUpload(9L)).thenReturn(screenshotDto);
+
+            mockMvc.perform(post("/api/v1/screenshots/9/complete"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.uploadStatus").value("SUCCESS"))
+                    .andExpect(jsonPath("$.fileSizeBytes").value(1024));
+        }
+
+        @Test
+        @DisplayName("liefert 409 SCREENSHOT_UPLOAD_INCOMPLETE, wenn das Objekt nicht in S3 liegt")
+        void shouldReturnConflictWhenObjectIsMissing() throws Exception {
+            when(screenshotService.completeUpload(9L))
+                    .thenThrow(new ScreenshotUploadIncompleteException(9L));
+
+            mockMvc.perform(post("/api/v1/screenshots/9/complete"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("SCREENSHOT_UPLOAD_INCOMPLETE"))
+                    .andExpect(jsonPath("$.message")
+                            .value("Screenshot with ID 9 has not been uploaded to S3 yet"));
+        }
+
+        @Test
+        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Screenshot nicht existiert")
+        void shouldReturnNotFound() throws Exception {
+            when(screenshotService.completeUpload(99L))
+                    .thenThrow(new ScreenshotNotFoundException(99L));
+
+            mockMvc.perform(post("/api/v1/screenshots/99/complete"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value("SCREENSHOT_NOT_FOUND"));
         }
     }
 
@@ -126,9 +195,9 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND für eine unbekannte ID")
-        void shouldReturnNotFound() throws Exception {
-            when(screenshotService.getScreenshot(99L)).thenThrow(new ScreenshotNotFoundException(99L));
+        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Service null zurückgibt")
+        void shouldReturnNotFoundOnNull() throws Exception {
+            when(screenshotService.getScreenshot(99L)).thenReturn(null);
 
             mockMvc.perform(get("/api/v1/screenshots/99"))
                     .andExpect(status().isNotFound())
@@ -138,47 +207,70 @@ class ScreenshotControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /api/v1/screenshots/{screenshotId}/download-url")
+    class GetDownloadUrl {
+
+        @Test
+        @DisplayName("liefert 200 mit der presignten Download-URL")
+        void shouldReturnDownloadUrl() throws Exception {
+            when(screenshotService.getDownloadUrl(9L)).thenReturn(downloadUrlDto);
+
+            mockMvc.perform(get("/api/v1/screenshots/9/download-url"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.screenshotId").value(9))
+                    .andExpect(jsonPath("$.downloadUrl").value("https://example.invalid/presigned-get"))
+                    .andExpect(jsonPath("$.originalFilename").value("screenshot.png"))
+                    .andExpect(jsonPath("$.contentType").value("image/png"));
+        }
+
+        @Test
+        @DisplayName("liefert 409 SCREENSHOT_UPLOAD_INCOMPLETE, solange der Upload nicht bestätigt ist")
+        void shouldReturnConflictWhilePending() throws Exception {
+            when(screenshotService.getDownloadUrl(9L))
+                    .thenThrow(new ScreenshotUploadIncompleteException(9L));
+
+            mockMvc.perform(get("/api/v1/screenshots/9/download-url"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("SCREENSHOT_UPLOAD_INCOMPLETE"));
+        }
+    }
+
+    @Nested
     @DisplayName("GET /api/v1/screenshots/{screenshotId}/download")
     class DownloadScreenshot {
 
         @Test
-        @DisplayName("liefert 200 mit Bytes, Content-Type und Content-Disposition")
-        void shouldDownloadScreenshot() throws Exception {
-            byte[] bytes = "png-bytes".getBytes();
-            when(screenshotService.getScreenshot(9L)).thenReturn(screenshotDto);
-            when(screenshotService.downloadScreenshot(9L)).thenReturn(bytes);
+        @DisplayName("leitet mit 302 auf die presignte S3-URL um, statt Bytes durchzureichen")
+        void shouldRedirectToPresignedUrl() throws Exception {
+            when(screenshotService.getDownloadUrl(9L)).thenReturn(downloadUrlDto);
 
             mockMvc.perform(get("/api/v1/screenshots/9/download"))
-                    .andExpect(status().isOk())
-                    .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/png"))
-                    .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
-                            org.hamcrest.Matchers.containsString("screenshot.png")))
-                    .andExpect(content().bytes(bytes));
-        }
-
-        @Test
-        @DisplayName("fällt auf application/octet-stream zurück, wenn kein Content-Type bekannt ist")
-        void shouldFallBackToOctetStream() throws Exception {
-            ScreenshotDto withoutContentType = new ScreenshotDto(9L, null, OBJECT_KEY,
-                    "screenshot.png", null, 1024L, UploadStatus.SUCCESS);
-            when(screenshotService.getScreenshot(9L)).thenReturn(withoutContentType);
-            when(screenshotService.downloadScreenshot(9L)).thenReturn("x".getBytes());
-
-            mockMvc.perform(get("/api/v1/screenshots/9/download"))
-                    .andExpect(status().isOk())
-                    .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "application/octet-stream"));
+                    .andExpect(status().isFound())
+                    .andExpect(header().string(HttpHeaders.LOCATION, "https://example.invalid/presigned-get"))
+                    .andExpect(content().string(""));
         }
 
         @Test
         @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn keine Metadaten existieren")
         void shouldReturnNotFoundWithoutMetadata() throws Exception {
-            when(screenshotService.getScreenshot(99L)).thenThrow(new ScreenshotNotFoundException(99L));
+            when(screenshotService.getDownloadUrl(99L))
+                    .thenThrow(new ScreenshotNotFoundException(99L));
 
             mockMvc.perform(get("/api/v1/screenshots/99/download"))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.code").value("SCREENSHOT_NOT_FOUND"));
         }
 
+        @Test
+        @DisplayName("liefert 409 SCREENSHOT_UPLOAD_INCOMPLETE, wenn der Upload nie bestätigt wurde")
+        void shouldReturnConflictWhenUploadIncomplete() throws Exception {
+            when(screenshotService.getDownloadUrl(9L))
+                    .thenThrow(new ScreenshotUploadIncompleteException(9L));
+
+            mockMvc.perform(get("/api/v1/screenshots/9/download"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("SCREENSHOT_UPLOAD_INCOMPLETE"));
+        }
     }
 
     @Nested
@@ -199,9 +291,9 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND für eine unbekannte ID")
-        void shouldReturnNotFoundOnUpdate() throws Exception {
-            when(screenshotService.updateScreenshot(eq(99L), any())).thenThrow(new ScreenshotNotFoundException(99L));
+        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Service null zurückgibt")
+        void shouldReturnNotFoundOnNull() throws Exception {
+            when(screenshotService.updateScreenshot(eq(99L), any())).thenReturn(null);
 
             mockMvc.perform(patch("/api/v1/screenshots/99")
                             .contentType(MediaType.APPLICATION_JSON)

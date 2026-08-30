@@ -143,6 +143,32 @@ class ErrorContractE2ETest extends AbstractE2ETest {
             assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.CATEGORY_ALREADY_EXISTS);
             assertThat(exception.isNotFound()).isFalse();
         }
+
+        @Test
+        @DisplayName("ein nie hochgeladener Screenshot wird als SCREENSHOT_UPLOAD_INCOMPLETE geliefert")
+        void shouldParseScreenshotUploadIncomplete() {
+            var uploadUrl = client().post()
+                    .uri("/api/v1/screenshots/upload-url")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadRequestDto(
+                            "screenshot.png", "image/png", 1024L))
+                    .retrieve()
+                    .toEntity(de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadUrlDto.class)
+                    .getBody();
+
+            ResponseEntity<String> response = client().post()
+                    .uri("/api/v1/screenshots/{id}/complete", uploadUrl.screenshotId())
+                    .retrieve()
+                    .toEntity(String.class);
+
+            ApiException exception = ApiException.fromHttpResponse(
+                    response.getStatusCode().value(), response.getBody(), OBJECT_MAPPER);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.SCREENSHOT_UPLOAD_INCOMPLETE);
+            assertThat(exception.isNotFound()).isFalse();
+            assertThat(exception.isRateLimited()).isFalse();
+        }
     }
 
     @Nested

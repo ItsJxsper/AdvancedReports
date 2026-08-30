@@ -1,28 +1,35 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
+import de.itsjxsper.advancedreports.backend.ratelimit.aspect.RateLimitAspect;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
 import de.itsjxsper.advancedreports.backend.support.ContainerSupport;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDownloadUrlDto;
 import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDto;
-import org.junit.jupiter.api.Disabled;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadRequestDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUploadUrlDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,34 +37,95 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Screenshot endpoints against a real MinIO container, with the {@code s3} profile active.
  * <p>
- * The assertions deliberately reach into the bucket with an {@link S3Client} as well as going through
- * REST: an upload that returns 201 but never puts an object would otherwise look like a success.
+ * The file itself never travels through the backend: the tests request a presigned URL, PUT the bytes
+ * straight to MinIO over plain HTTP and only then confirm the upload. The assertions deliberately reach
+ * into the bucket with an {@link S3Client} as well as going through REST, because a confirmation that
+ * returns 200 without an object behind it would otherwise look like a success.
  */
 @DisplayName("E2E: Screenshots")
 class ScreenshotE2ETest extends AbstractE2ETest {
 
     private static final byte[] PNG_BYTES = "not-a-real-png-but-good-enough".getBytes(StandardCharsets.UTF_8);
 
-    private MultiValueMap<String, Object> multipartBody(String filename, byte[] content) {
-        ByteArrayResource file = new ByteArrayResource(content) {
-            @Override
-            public String getFilename() {
-                return filename;
-            }
-        };
+    /**
+     * java.net.http verwaltet diese Header selbst und wirft, wenn man sie setzt.
+     */
+    private static final Set<String> RESTRICTED_HEADERS =
+            Set.of("host", "content-length", "connection", "expect", "upgrade");
 
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add("file", file);
-        return body;
+    private static final HttpClient HTTP = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build();
+
+    private ScreenshotUploadUrlDto requestUploadUrl(String filename, long fileSizeBytes) {
+        return client().post()
+                .uri("/api/v1/screenshots/upload-url")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ScreenshotUploadRequestDto(filename, "image/png", fileSizeBytes))
+                .retrieve()
+                .toEntity(ScreenshotUploadUrlDto.class)
+                .getBody();
     }
 
-    private ResponseEntity<ScreenshotDto> upload(String filename, byte[] content) {
+    private HttpResponse<String> putToPresignedUrl(ScreenshotUploadUrlDto uploadUrl, byte[] content) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(uploadUrl.uploadUrl()))
+                .PUT(HttpRequest.BodyPublishers.ofByteArray(content));
+
+        uploadUrl.requiredHeaders().forEach((name, value) -> {
+            if (!RESTRICTED_HEADERS.contains(name.toLowerCase(Locale.ROOT))) {
+                request.header(name, value);
+            }
+        });
+
+        try {
+            return HTTP.send(request.build(), HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private ResponseEntity<ScreenshotDto> complete(Long screenshotId) {
         return client().post()
-                .uri("/api/v1/screenshots/upload")
-                .contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(multipartBody(filename, content))
+                .uri("/api/v1/screenshots/{id}/complete", screenshotId)
                 .retrieve()
                 .toEntity(ScreenshotDto.class);
+    }
+
+    /**
+     * The whole three-step flow, as a client would run it.
+     */
+    private ScreenshotDto upload(String filename, byte[] content) {
+        ScreenshotUploadUrlDto uploadUrl = requestUploadUrl(filename, content.length);
+        assertThat(putToPresignedUrl(uploadUrl, content).statusCode()).isEqualTo(200);
+        return complete(uploadUrl.screenshotId()).getBody();
+    }
+
+    private HttpResponse<byte[]> get(String url, String... headers) {
+        HttpRequest.Builder request = HttpRequest.newBuilder(URI.create(url)).GET();
+        for (int i = 0; i < headers.length; i += 2) {
+            request.header(headers[i], headers[i + 1]);
+        }
+
+        try {
+            return HTTP.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * A backend GET that does not follow redirects, so the 302 itself can be asserted.
+     * {@code RestClient} would swallow it.
+     */
+    private HttpResponse<byte[]> getFromBackend(String path) {
+        return get("http://localhost:" + port + path,
+                RateLimitAspect.HEADER_DISCORD_ID, RATE_LIMIT_DISCORD_ID);
     }
 
     private boolean objectExists(String objectKey) {
@@ -74,68 +142,154 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     class Upload {
 
         @Test
-        @DisplayName("lädt eine Datei hoch und legt sie tatsächlich im Bucket ab")
-        void shouldUploadFileToBucket() {
-            ResponseEntity<ScreenshotDto> response = upload("screenshot.png", PNG_BYTES);
+        @DisplayName("reserviert die Metadaten als PENDING und gibt eine presignte Upload-URL zurück")
+        void shouldReserveMetadataAsPending() {
+            ResponseEntity<ScreenshotUploadUrlDto> response = client().post()
+                    .uri("/api/v1/screenshots/upload-url")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new ScreenshotUploadRequestDto("screenshot.png", "image/png", PNG_BYTES.length))
+                    .retrieve()
+                    .toEntity(ScreenshotUploadUrlDto.class);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-            ScreenshotDto created = response.getBody();
-            assertThat(created.id()).isNotNull();
-            assertThat(created.originalFilename()).isEqualTo("screenshot.png");
-            assertThat(created.contentType()).isEqualTo("image/png");
-            assertThat(created.fileSizeBytes()).isEqualTo(PNG_BYTES.length);
-            assertThat(created.uploadStatus()).isEqualTo(UploadStatus.SUCCESS);
-            assertThat(created.s3ObjectKey())
+            ScreenshotUploadUrlDto uploadUrl = response.getBody();
+            assertThat(uploadUrl.screenshotId()).isNotNull();
+            assertThat(uploadUrl.httpMethod()).isEqualTo("PUT");
+            assertThat(uploadUrl.uploadStatus()).isEqualTo(UploadStatus.PENDING);
+            assertThat(uploadUrl.expiresAt()).isNotNull();
+            assertThat(uploadUrl.uploadUrl())
+                    .as("Die URL zeigt direkt auf MinIO, nicht auf das Backend")
+                    .startsWith(ContainerSupport.MINIO.getS3URL())
+                    .contains("X-Amz-Signature");
+            assertThat(uploadUrl.s3ObjectKey())
                     .matches("screenshots/\\d{4}-\\d{2}-\\d{2}/[0-9a-f-]{36}-screenshot\\.png");
 
-            assertThat(objectExists(created.s3ObjectKey()))
-                    .as("Das Objekt muss wirklich im Bucket liegen, nicht nur in der Datenbank")
+            assertThat(objectExists(uploadUrl.s3ObjectKey()))
+                    .as("Vor dem Upload darf noch kein Objekt im Bucket liegen")
+                    .isFalse();
+        }
+
+        @Test
+        @DisplayName("lädt die Datei über die presignte URL direkt in den Bucket")
+        void shouldUploadFileToBucketViaPresignedUrl() {
+            ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
+
+            assertThat(putToPresignedUrl(uploadUrl, PNG_BYTES).statusCode()).isEqualTo(200);
+
+            assertThat(objectExists(uploadUrl.s3ObjectKey()))
+                    .as("Das Objekt muss wirklich im Bucket liegen, ohne dass das Backend die Bytes gesehen hat")
                     .isTrue();
+        }
+
+        @Test
+        @DisplayName("bestätigt den Upload und übernimmt die tatsächliche Größe aus S3")
+        void shouldCompleteUploadWithRealMetadata() {
+            ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
+            putToPresignedUrl(uploadUrl, PNG_BYTES);
+
+            ResponseEntity<ScreenshotDto> response = complete(uploadUrl.screenshotId());
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+            ScreenshotDto completed = response.getBody();
+            assertThat(completed.id()).isEqualTo(uploadUrl.screenshotId());
+            assertThat(completed.s3ObjectKey()).isEqualTo(uploadUrl.s3ObjectKey());
+            assertThat(completed.originalFilename()).isEqualTo("screenshot.png");
+            assertThat(completed.contentType()).isEqualTo("image/png");
+            assertThat(completed.fileSizeBytes()).isEqualTo(PNG_BYTES.length);
+            assertThat(completed.uploadStatus()).isEqualTo(UploadStatus.SUCCESS);
+        }
+
+        @Test
+        @DisplayName("liefert die S3-URL des hochgeladenen Bildes zurück")
+        void shouldReturnStorageUri() {
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
+
+            assertThat(uploaded.s3Url()).isNotNull().contains(ContainerSupport.S3_BUCKET);
         }
 
         @Test
         @DisplayName("entschärft Sonderzeichen im Dateinamen für den Object-Key")
         void shouldSanitizeFilename() {
-            ResponseEntity<ScreenshotDto> response = upload("Böse Datei!.PNG", PNG_BYTES);
+            ScreenshotDto uploaded = upload("Böse Datei!.PNG", PNG_BYTES);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            assertThat(response.getBody().s3ObjectKey())
-                    .matches("screenshots/[^/]+/[0-9a-f-]{36}-[a-z0-9._-]+");
-            assertThat(response.getBody().originalFilename()).isEqualTo("Böse Datei!.PNG");
+            assertThat(uploaded.s3ObjectKey()).matches("screenshots/[^/]+/[0-9a-f-]{36}-[a-z0-9._-]+");
+            assertThat(uploaded.originalFilename()).isEqualTo("Böse Datei!.PNG");
         }
 
         @Test
-        @Disabled("BUG: ScreenshotService#applyStoredScreenshot "
-                + "(screenshot/service/ScreenshotService.java:314) uebernimmt objectKey, "
-                + "originalFilename, contentType und fileSizeBytes, laesst aber die storageUri aus "
-                + "StoredScreenshot liegen. s3Url bleibt nach einem Upload daher null, obwohl das Feld "
-                + "Teil von ScreenshotDto ist und ScreenshotReadyEvent es transportieren soll.")
-        @DisplayName("liefert die S3-URL des hochgeladenen Bildes zurück")
-        void shouldReturnStorageUri() {
-            ResponseEntity<ScreenshotDto> response = upload("screenshot.png", PNG_BYTES);
-
-            assertThat(response.getBody().s3Url()).isNotNull().contains(ContainerSupport.S3_BUCKET);
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass s3Url nach einem Upload leer bleibt")
-        void shouldCurrentlyLeaveStorageUriEmpty() {
-            assertThat(upload("screenshot.png", PNG_BYTES).getBody().s3Url()).isNull();
-        }
-
-        @Test
-        @DisplayName("lehnt eine leere Datei ab")
+        @DisplayName("lehnt eine Dateigröße von null ab")
         void shouldRejectEmptyFile() {
             ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/screenshots/upload")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(multipartBody("screenshot.png", new byte[0]))
+                    .uri("/api/v1/screenshots/upload-url")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new ScreenshotUploadRequestDto("screenshot.png", "image/png", 0L))
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        @Test
+        @DisplayName("lehnt Dateien oberhalb des konfigurierten Maximums ab")
+        void shouldRejectOversizedFile() {
+            ResponseEntity<ApiErrorResponse> response = client().post()
+                    .uri("/api/v1/screenshots/upload-url")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new ScreenshotUploadRequestDto("screenshot.png", "image/png", 10_485_761L))
+                    .retrieve()
+                    .toEntity(ApiErrorResponse.class);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.ILLEGAL_ARGUMENT);
+        }
+
+        @Test
+        @DisplayName("antwortet mit 409 SCREENSHOT_UPLOAD_INCOMPLETE, wenn nie hochgeladen wurde")
+        void shouldRejectCompletionWithoutUpload() {
+            ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
+
+            ResponseEntity<ApiErrorResponse> response = client().post()
+                    .uri("/api/v1/screenshots/{id}/complete", uploadUrl.screenshotId())
+                    .retrieve()
+                    .toEntity(ApiErrorResponse.class);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.SCREENSHOT_UPLOAD_INCOMPLETE);
+
+            ResponseEntity<ScreenshotDto> metadata = client().get()
+                    .uri("/api/v1/screenshots/{id}", uploadUrl.screenshotId())
+                    .retrieve()
+                    .toEntity(ScreenshotDto.class);
+
+            assertThat(metadata.getBody().uploadStatus())
+                    .as("Der fehlgeschlagene Upload muss als FAILED erkennbar bleiben")
+                    .isEqualTo(UploadStatus.FAILED);
+        }
+
+        @Test
+        @DisplayName("ist idempotent, wenn der Client die Bestätigung wiederholt")
+        void shouldBeIdempotent() {
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
+
+            ResponseEntity<ScreenshotDto> second = complete(uploaded.id());
+
+            assertThat(second.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(second.getBody().uploadStatus()).isEqualTo(UploadStatus.SUCCESS);
+        }
+
+        @Test
+        @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND, wenn die id unbekannt ist")
+        void shouldReturnNotFoundForUnknownId() {
+            ResponseEntity<ApiErrorResponse> response = client().post()
+                    .uri("/api/v1/screenshots/9999/complete")
+                    .retrieve()
+                    .toEntity(ApiErrorResponse.class);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.SCREENSHOT_NOT_FOUND);
         }
     }
 
@@ -144,29 +298,56 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     class Download {
 
         @Test
-        @DisplayName("lädt die hochgeladenen Bytes unverändert wieder herunter")
-        void shouldDownloadUploadedBytes() {
-            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES).getBody();
+        @DisplayName("liefert eine presignte URL, über die die Bytes unverändert zurückkommen")
+        void shouldDownloadUploadedBytesViaPresignedUrl() {
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
-            ResponseEntity<byte[]> response = client().get()
-                    .uri("/api/v1/screenshots/{id}/download", uploaded.id())
+            ResponseEntity<ScreenshotDownloadUrlDto> response = client().get()
+                    .uri("/api/v1/screenshots/{id}/download-url", uploaded.id())
                     .retrieve()
-                    .toEntity(byte[].class);
+                    .toEntity(ScreenshotDownloadUrlDto.class);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody()).isEqualTo(PNG_BYTES);
-            assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.IMAGE_PNG);
 
-            ContentDisposition disposition = response.getHeaders().getContentDisposition();
-            assertThat(disposition.getType()).isEqualTo("attachment");
-            assertThat(disposition.getFilename()).isEqualTo("screenshot.png");
+            ScreenshotDownloadUrlDto downloadUrl = response.getBody();
+            assertThat(downloadUrl.screenshotId()).isEqualTo(uploaded.id());
+            assertThat(downloadUrl.originalFilename()).isEqualTo("screenshot.png");
+            assertThat(downloadUrl.contentType()).isEqualTo("image/png");
+            assertThat(downloadUrl.downloadUrl())
+                    .startsWith(ContainerSupport.MINIO.getS3URL())
+                    .contains("X-Amz-Signature");
+
+            HttpResponse<byte[]> fetched = get(downloadUrl.downloadUrl());
+            assertThat(fetched.statusCode()).isEqualTo(200);
+            assertThat(fetched.body()).isEqualTo(PNG_BYTES);
+            assertThat(fetched.headers().firstValue("content-type")).hasValue("image/png");
+            assertThat(fetched.headers().firstValue("content-disposition"))
+                    .hasValueSatisfying(disposition -> assertThat(disposition).contains("screenshot.png"));
+        }
+
+        @Test
+        @DisplayName("leitet /download mit 302 auf die presignte S3-URL um")
+        void shouldRedirectToPresignedUrl() {
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
+
+            HttpResponse<byte[]> response =
+                    getFromBackend("/api/v1/screenshots/" + uploaded.id() + "/download");
+
+            assertThat(response.statusCode()).isEqualTo(302);
+            assertThat(response.headers().firstValue("location"))
+                    .hasValueSatisfying(location -> assertThat(location)
+                            .startsWith(ContainerSupport.MINIO.getS3URL())
+                            .contains("X-Amz-Signature"));
+            assertThat(response.body())
+                    .as("Das Backend reicht keine Bytes mehr durch")
+                    .isEmpty();
         }
 
         @Test
         @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND für eine unbekannte id")
         void shouldReturnNotFoundForUnknownId() {
             ResponseEntity<ApiErrorResponse> response = client().get()
-                    .uri("/api/v1/screenshots/9999/download")
+                    .uri("/api/v1/screenshots/9999/download-url")
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
@@ -175,19 +356,33 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 503 SCREENSHOT_STORAGE_ERROR, wenn das Objekt im Bucket fehlt")
-        void shouldReturnStorageErrorWhenObjectMissing() {
-            // Metadaten ohne zugehoeriges Objekt - genau der Zustand nach einem manuell im Bucket
-            // geloeschten Screenshot.
-            ScreenshotDto orphan = ApiFixtures.createScreenshot(client());
+        @DisplayName("antwortet mit 409 SCREENSHOT_UPLOAD_INCOMPLETE, solange der Upload PENDING ist")
+        void shouldReturnConflictWhilePending() {
+            ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
 
             ResponseEntity<ApiErrorResponse> response = client().get()
-                    .uri("/api/v1/screenshots/{id}/download", orphan.id())
+                    .uri("/api/v1/screenshots/{id}/download-url", uploadUrl.screenshotId())
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.SCREENSHOT_STORAGE_ERROR);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.SCREENSHOT_UPLOAD_INCOMPLETE);
+        }
+
+        @Test
+        @DisplayName("gibt eine URL aus, die 404 liefert, wenn das Objekt im Bucket fehlt")
+        void shouldPresignUrlThatFailsWhenObjectMissing() {
+            // Metadaten ohne zugehoeriges Objekt - genau der Zustand nach einem manuell im Bucket
+            // geloeschten Screenshot. Das Backend signiert weiter, S3 lehnt beim Abruf ab.
+            ScreenshotDto orphan = ApiFixtures.createScreenshot(client());
+
+            ResponseEntity<ScreenshotDownloadUrlDto> response = client().get()
+                    .uri("/api/v1/screenshots/{id}/download-url", orphan.id())
+                    .retrieve()
+                    .toEntity(ScreenshotDownloadUrlDto.class);
+
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(get(response.getBody().downloadUrl()).statusCode()).isEqualTo(404);
         }
     }
 
@@ -198,7 +393,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         @Test
         @DisplayName("liest die Metadaten eines hochgeladenen Screenshots")
         void shouldReadMetadata() {
-            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES).getBody();
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
             ResponseEntity<ScreenshotDto> response = client().get()
                     .uri("/api/v1/screenshots/{id}", uploaded.id())
@@ -212,7 +407,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         @Test
         @DisplayName("ändert die Metadaten eines Screenshots")
         void shouldUpdateMetadata() {
-            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES).getBody();
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
             ResponseEntity<ScreenshotDto> response = client().patch()
                     .uri("/api/v1/screenshots/{id}", uploaded.id())
@@ -233,7 +428,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         @Test
         @DisplayName("löscht Metadaten und Objekt im Bucket")
         void shouldDeleteMetadataAndObject() {
-            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES).getBody();
+            ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
             assertThat(objectExists(uploaded.s3ObjectKey())).isTrue();
 
             assertThat(client().delete()
@@ -290,28 +485,29 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     class BucketInteraction {
 
         @Test
-        @DisplayName("lädt ein Objekt herunter, das direkt in den Bucket gelegt wurde")
-        void shouldServeObjectPutDirectly() {
-            // Beweist, dass der Download-Pfad wirklich aus S3 liest und nicht aus der Datenbank.
-            ScreenshotDto metadata = ApiFixtures.createScreenshot(client());
+        @DisplayName("bestätigt ein Objekt, das direkt in den Bucket gelegt wurde")
+        void shouldCompleteObjectPutDirectly() {
+            // Beweist, dass die Bestaetigung wirklich gegen S3 prueft und nicht dem Client glaubt.
+            ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
             byte[] content = "direkt-in-den-bucket".getBytes(StandardCharsets.UTF_8);
 
             try (S3Client s3 = ContainerSupport.s3Client()) {
                 s3.putObject(PutObjectRequest.builder()
                                 .bucket(ContainerSupport.S3_BUCKET)
-                                .key(metadata.s3ObjectKey())
+                                .key(uploadUrl.s3ObjectKey())
                                 .contentType("image/png")
                                 .build(),
                         software.amazon.awssdk.core.sync.RequestBody.fromBytes(content));
             }
 
-            ResponseEntity<byte[]> response = client().get()
-                    .uri("/api/v1/screenshots/{id}/download", metadata.id())
-                    .retrieve()
-                    .toEntity(byte[].class);
-
+            ResponseEntity<ScreenshotDto> response = complete(uploadUrl.screenshotId());
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-            assertThat(response.getBody()).isEqualTo(content);
+
+            ScreenshotDto completed = response.getBody();
+            assertThat(completed.uploadStatus()).isEqualTo(UploadStatus.SUCCESS);
+            assertThat(completed.fileSizeBytes())
+                    .as("Die tatsaechliche Groesse aus S3 ersetzt die vom Client angekuendigte")
+                    .isEqualTo(content.length);
         }
 
         @Test
