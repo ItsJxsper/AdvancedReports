@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -25,7 +26,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * <p>
  * A unit test cannot catch a missing {@code @Bean} here: the {@code Queue} object is still constructed
  * by the method call inside {@code discordBinding()}, it simply never gets declared on the broker.
- * Only asking the broker itself shows the difference.
+ * Only asking the broker itself shows the difference — and, as the tests below document, the
+ * consequences reach well beyond the Discord queue.
  */
 @DisplayName("RabbitMQ-Topologie")
 class RabbitMQConfigurationIT extends AbstractE2ETest {
@@ -39,14 +41,38 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
         return rabbitAdmin.getQueueProperties(queueName);
     }
 
+    /**
+     * Empties the plugin queue before a routing assertion.
+     * <p>
+     * Retries on {@link AmqpException} on purpose: the first operation on a fresh channel triggers
+     * RabbitAdmin s declaration pass, and a channel lost during that pass has to be replaced before
+     * the next attempt can succeed.
+     */
     private void drainPluginQueue() {
-        while (rabbitTemplate.receive(RabbitMQConfiguration.QUEUE_PLUGIN, 200) != null) {
-            // keep draining
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                while (rabbitTemplate.receive(RabbitMQConfiguration.QUEUE_PLUGIN, 200) != null) {
+                    // keep draining
+                }
+                return;
+            } catch (AmqpException ignored) {
+                // Channel was killed by the failed declaration — the next attempt gets a new one.
+            }
         }
     }
 
     private Message receiveFromPluginQueue() {
-        return rabbitTemplate.receive(RabbitMQConfiguration.QUEUE_PLUGIN, 5_000);
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                Message message = rabbitTemplate.receive(RabbitMQConfiguration.QUEUE_PLUGIN, 1_000);
+                if (message != null) {
+                    return message;
+                }
+            } catch (AmqpException ignored) {
+                // See drainPluginQueue().
+            }
+        }
+        return null;
     }
 
     @Nested
@@ -72,6 +98,7 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
         void shouldDeclareDiscordQueue() {
             assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD)).isNotNull();
         }
+
 
         @Test
         @DisplayName("deklariert den Fanout-Exchange und das Dead-Letter-Exchange")

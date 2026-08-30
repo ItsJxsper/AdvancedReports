@@ -3,6 +3,7 @@ package de.itsjxsper.advancedreports.backend.discord.controller;
 import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFoundException;
 import de.itsjxsper.advancedreports.backend.discord.service.DiscordPlayerService;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class DiscordPlayerControllerTest {
     private static final Long DISCORD_PLAYER_ID = 5L;
 
     /**
-     * A realistic Discord snowflake — 18 digits.
+     * A realistic Discord snowflake — 18 digits, far beyond what {@code @Max(18)} permits.
      */
     private static final Long REAL_SNOWFLAKE = 217476470391308288L;
     private final DiscordPlayerDto discordPlayerDto =
@@ -84,6 +85,7 @@ class DiscordPlayerControllerTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.discordUserId").value(REAL_SNOWFLAKE));
         }
+
     }
 
     @Nested

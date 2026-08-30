@@ -23,7 +23,10 @@ public class DiscordPlayerEntity {
     @JoinColumn(name = "player_entity_player_uuid", nullable = false, unique = true)
     private PlayerEntity playerEntity;
 
-    // Discord-Snowflakes sind 17-19-stellig und gehoeren als Long in eine bigint-Spalte.
+    // Discord-Snowflakes sind 17-19-stellige Zahlen. @Max(18) hat den *Wert* auf 18 begrenzt und
+    // damit jede echte ID abgelehnt; @JdbcTypeCode(LONG32NVARCHAR) hat die Spalte ausserdem auf
+    // text gelegt, woraus Hibernate einen numerischen CHECK gegen text generiert hat - Postgres
+    // lehnte das DDL ab ("operator does not exist: text <= integer") und die Tabelle entstand nie.
     @Digits(integer = 19, fraction = 0)
     @Column(name = "discord_user_id")
     private Long discordUserId;
