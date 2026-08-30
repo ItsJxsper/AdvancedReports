@@ -67,7 +67,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
             entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 17L));
 
             assertThatThrownBy(() ->
-                    entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 18L)))
+                    discordPlayerRepository.saveAndFlush(TestDataFactory.discordPlayer(player, 18L)))
                     .isInstanceOf(DataIntegrityViolationException.class);
         }
 
@@ -76,8 +76,6 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
         void shouldPersistRealSnowflake() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
 
-            // Auf DB-Ebene passt die Snowflake problemlos - blockiert wird sie erst von der
-            // Bean Validation (@Max(18)), siehe DiscordPlayerControllerTest.
             DiscordPlayerEntity saved =
                     entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 217476470391308288L));
             entityManager.clear();

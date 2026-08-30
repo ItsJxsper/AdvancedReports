@@ -53,6 +53,7 @@ dependencies {
     implementation("org.mapstruct:mapstruct:1.6.3")
     implementation("com.bucket4j:bucket4j-redis:8.10.1")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     // The application talks to PostgreSQL but shipped without a JDBC driver, so the
     // datasource could never be created. Required at runtime, not just in tests.
     runtimeOnly("org.postgresql:postgresql")
