@@ -3,7 +3,6 @@ package de.itsjxsper.advancedreports.backend.discord.controller;
 import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFoundException;
 import de.itsjxsper.advancedreports.backend.discord.service.DiscordPlayerService;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -48,7 +47,7 @@ class DiscordPlayerControllerTest {
     class CreateDiscordPlayer {
 
         @Test
-        @DisplayName("liefert 201 mit der angelegten Verknüpfung")
+        @DisplayName("returns 201 with the created link")
         void shouldCreateDiscordPlayer() throws Exception {
             when(discordPlayerService.createDiscordPlayer(any())).thenReturn(discordPlayerDto);
 
@@ -61,7 +60,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 DISCORD_USER_NOT_FOUND, wenn der Minecraft-Spieler fehlt")
+        @DisplayName("returns 404 DISCORD_USER_NOT_FOUND when the Minecraft player is missing")
         void shouldReturnNotFound() throws Exception {
             when(discordPlayerService.createDiscordPlayer(any()))
                     .thenThrow(new DiscordUserNotFoundException(PLAYER_UUID));
@@ -74,14 +73,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @Disabled("BUG: @Max(18) auf discordUserId begrenzt den *Wert* auf 18, nicht die Stellenzahl "
-                + "(common DiscordPlayerDto und discord/data/entity/DiscordPlayerEntity.java:18). "
-                + "Discord-IDs sind 17-19-stellige Snowflakes, also wird jede echte Discord-ID von "
-                + "der Bean Validation abgelehnt - die Domain ist mit realen Daten unbenutzbar. "
-                + "Gemeint war vermutlich @Digits(integer = 18, fraction = 0). Erschwerend kommt "
-                + "hinzu, dass die Ablehnung wegen des Auffangnetzes im GlobalExceptionHandler als "
-                + "500 statt 400 herauskommt.")
-        @DisplayName("akzeptiert eine echte, 18-stellige Discord-Snowflake")
+        @DisplayName("accepts a real 18-digit Discord snowflake")
         void shouldAcceptRealSnowflake() throws Exception {
             DiscordPlayerDto dto = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, REAL_SNOWFLAKE);
             when(discordPlayerService.createDiscordPlayer(any())).thenReturn(dto);
@@ -93,17 +85,6 @@ class DiscordPlayerControllerTest {
                     .andExpect(jsonPath("$.discordUserId").value(REAL_SNOWFLAKE));
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass eine echte Discord-Snowflake aktuell abgelehnt wird")
-        void shouldCurrentlyRejectRealSnowflake() throws Exception {
-            DiscordPlayerDto dto = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, REAL_SNOWFLAKE);
-
-            mockMvc.perform(post("/api/v1/discord-players")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(dto)))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
     }
 
     @Nested
@@ -111,7 +92,7 @@ class DiscordPlayerControllerTest {
     class GetById {
 
         @Test
-        @DisplayName("liefert 200 mit der Verknüpfung")
+        @DisplayName("returns 200 with the link")
         void shouldReturnDiscordPlayer() throws Exception {
             when(discordPlayerService.getDiscordPlayerById(DISCORD_PLAYER_ID))
                     .thenReturn(discordPlayerDto);
@@ -122,7 +103,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 DISCORD_USER_NOT_FOUND für eine unbekannte id")
+        @DisplayName("returns 404 DISCORD_USER_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() throws Exception {
             when(discordPlayerService.getDiscordPlayerById(99L))
                     .thenThrow(new DiscordUserNotFoundException(99L));
@@ -138,7 +119,7 @@ class DiscordPlayerControllerTest {
     class GetByPlayerUuid {
 
         @Test
-        @DisplayName("liefert 200 mit der Verknüpfung zur Spieler-UUID")
+        @DisplayName("returns 200 with the link for the player UUID")
         void shouldReturnDiscordPlayer() throws Exception {
             when(discordPlayerService.getDiscordPlayerByPlayerUUID(PLAYER_UUID))
                     .thenReturn(discordPlayerDto);
@@ -149,7 +130,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 DISCORD_USER_NOT_FOUND für eine unbekannte Spieler-UUID")
+        @DisplayName("returns 404 DISCORD_USER_NOT_FOUND for an unknown player UUID")
         void shouldReturnNotFound() throws Exception {
             when(discordPlayerService.getDiscordPlayerByPlayerUUID(PLAYER_UUID))
                     .thenThrow(new DiscordUserNotFoundException(PLAYER_UUID));
@@ -165,7 +146,7 @@ class DiscordPlayerControllerTest {
     class UpdateDiscordPlayer {
 
         @Test
-        @DisplayName("liefert 200 mit der aktualisierten Verknüpfung")
+        @DisplayName("returns 200 with the updated link")
         void shouldUpdateDiscordPlayer() throws Exception {
             when(discordPlayerService.updateDiscordPlayer(any())).thenReturn(discordPlayerDto);
 
@@ -179,7 +160,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 DISCORD_USER_NOT_FOUND für eine unbekannte Verknüpfung")
+        @DisplayName("returns 404 DISCORD_USER_NOT_FOUND for an unknown link")
         void shouldReturnNotFound() throws Exception {
             when(discordPlayerService.updateDiscordPlayer(any()))
                     .thenThrow(new DiscordUserNotFoundException(DISCORD_PLAYER_ID));
@@ -193,11 +174,11 @@ class DiscordPlayerControllerTest {
     }
 
     @Nested
-    @DisplayName("DELETE-Endpunkte")
+    @DisplayName("DELETE endpoints")
     class DeleteEndpoints {
 
         @Test
-        @DisplayName("DELETE /{discordPlayerId} liefert 204 ohne Body")
+        @DisplayName("DELETE /{discordPlayerId} returns 204 with no body")
         void shouldDeleteById() throws Exception {
             mockMvc.perform(delete("/api/v1/discord-players/{id}", DISCORD_PLAYER_ID))
                     .andExpect(status().isNoContent())
@@ -207,7 +188,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("DELETE /player/{playerUUID} liefert 204 ohne Body")
+        @DisplayName("DELETE /player/{playerUUID} returns 204 with no body")
         void shouldDeleteByPlayerUuid() throws Exception {
             mockMvc.perform(delete("/api/v1/discord-players/player/{uuid}", PLAYER_UUID))
                     .andExpect(status().isNoContent())
@@ -217,7 +198,7 @@ class DiscordPlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 DISCORD_USER_NOT_FOUND, wenn der Service wirft")
+        @DisplayName("returns 404 DISCORD_USER_NOT_FOUND when the service throws")
         void shouldReturnNotFound() throws Exception {
             doThrow(new DiscordUserNotFoundException(99L))
                     .when(discordPlayerService).deleteDiscordPlayerByDiscordId(99L);

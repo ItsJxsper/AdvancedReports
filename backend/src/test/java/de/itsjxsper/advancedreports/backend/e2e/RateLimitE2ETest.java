@@ -1,9 +1,9 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.ratelimit.aspect.RateLimitAspect;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -32,11 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RateLimitE2ETest extends AbstractE2ETest {
 
     @Nested
-    @DisplayName("Fehlende Header")
+    @DisplayName("Missing headers")
     class MissingHeaders {
 
         @Test
-        @DisplayName("antwortet mit 400 MISSING_HEADER, wenn X-Server-UUID fehlt")
+        @DisplayName("answers 400 MISSING_HEADER when X-Server-UUID is missing")
         void shouldRejectMissingServerHeader() {
             ResponseEntity<ApiErrorResponse> response = clientBuilder().build().get()
                     .uri("/api/v1/categories/count")
@@ -49,7 +49,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 400 MISSING_HEADER, wenn bei Reports X-Player-UUID fehlt")
+        @DisplayName("answers 400 MISSING_HEADER when X-Player-UUID is missing on reports")
         void shouldRejectMissingPlayerHeader() {
             ResponseEntity<ApiErrorResponse> response = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, UUID.randomUUID().toString())
@@ -65,7 +65,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 400 MISSING_HEADER, wenn bei Screenshots X-Discord-ID fehlt")
+        @DisplayName("answers 400 MISSING_HEADER when X-Discord-ID is missing on screenshots")
         void shouldRejectMissingDiscordHeader() {
             ResponseEntity<ApiErrorResponse> response = clientBuilder().build().get()
                     .uri("/api/v1/screenshots/count")
@@ -78,7 +78,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 400 MISSING_HEADER, wenn X-Server-UUID leer ist")
+        @DisplayName("answers 400 MISSING_HEADER when X-Server-UUID is empty")
         void shouldRejectBlankServerHeader() {
             ResponseEntity<ApiErrorResponse> response = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, "   ")
@@ -94,18 +94,18 @@ class RateLimitE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Erschöpftes Bucket")
+    @DisplayName("Exhausted bucket")
     class ExhaustedBucket {
 
         @Test
-        @DisplayName("antwortet mit 429 RATE_LIMIT_EXCEEDED, sobald das Server-Bucket leer ist")
+        @DisplayName("answers 429 RATE_LIMIT_EXCEEDED as soon as the server bucket is empty")
         void shouldReturnTooManyRequests() {
             String serverUuid = UUID.randomUUID().toString();
             var limited = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, serverUuid)
                     .build();
 
-            // Kapazität ist 2, der dritte Aufruf innerhalb derselben Sekunde muss abgelehnt werden.
+            // Capacity is 2, so the third call within the same second has to be rejected.
             assertThat(limited.get().uri("/api/v1/categories/count").retrieve()
                     .toBodilessEntity().getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(limited.get().uri("/api/v1/categories/count").retrieve()
@@ -122,7 +122,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("führt für jede Server-UUID ein eigenes Bucket")
+        @DisplayName("keeps a separate bucket per server UUID")
         void shouldTrackBucketsPerIdentity() {
             String exhausted = UUID.randomUUID().toString();
             var first = clientBuilder()
@@ -134,7 +134,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
             assertThat(first.get().uri("/api/v1/categories/count").retrieve()
                     .toBodilessEntity().getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
 
-            // Ein anderer Server darf davon nichts merken.
+            // A different server must not notice any of it.
             var second = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, UUID.randomUUID().toString())
                     .build();
@@ -145,11 +145,11 @@ class RateLimitE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Remaining-Header")
+    @DisplayName("Remaining headers")
     class RemainingHeaders {
 
         @Test
-        @DisplayName("zählt X-RateLimit-Server-Remaining mit jedem Aufruf herunter")
+        @DisplayName("counts X-RateLimit-Server-Remaining down with every call")
         void shouldCountDownRemainingTokens() {
             var limited = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, UUID.randomUUID().toString())
@@ -169,7 +169,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("setzt bei Reports sowohl den Server- als auch den Player-Header")
+        @DisplayName("sets both the server and the player header for reports")
         void shouldSetBothRemainingHeaders() {
             ResponseEntity<Void> response = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, UUID.randomUUID().toString())
@@ -186,7 +186,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("setzt den Discord-Header bei Screenshot-Endpunkten und keinen Server-Header")
+        @DisplayName("sets the Discord header on screenshot endpoints and no server header")
         void shouldOnlySetDiscordHeaderForScreenshots() {
             ResponseEntity<Void> response = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_DISCORD_ID, "987654321098765432")
@@ -202,7 +202,7 @@ class RateLimitE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert den Remaining-Header auch bei der abgelehnten Anfrage")
+        @DisplayName("returns the remaining header on the rejected request as well")
         void shouldSetRemainingHeaderOnRejection() {
             var limited = clientBuilder()
                     .defaultHeader(RateLimitAspect.HEADER_SERVER_UUID, UUID.randomUUID().toString())

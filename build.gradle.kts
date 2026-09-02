@@ -3,6 +3,11 @@ plugins {
     id("maven-publish")
 }
 
+// Read outside the subprojects block on purpose: inside it the receiver is the subproject, which has
+// no "libs" extension, so referencing the catalog there fails with
+// "Extension with name 'libs' does not exist".
+val javaToolchain = libs.versions.java.get().toInt()
+
 allprojects {
     group = "de.itsjxsper"
 
@@ -13,8 +18,12 @@ allprojects {
             name = "githubPackages"
             url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
             credentials {
-                username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("actor")
-                password = providers.gradleProperty("gpr.token").orNull ?: System.getenv("token")
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .orNull
+                password = providers.gradleProperty("gpr.token")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .orNull
             }
         }
     }
@@ -26,7 +35,7 @@ subprojects {
 
     java {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(25))
+            languageVersion.set(JavaLanguageVersion.of(javaToolchain))
         }
         withSourcesJar()
         withJavadocJar()
@@ -80,8 +89,12 @@ subprojects {
                 name = "githubPackages"
                 url = uri("https://maven.pkg.github.com/ItsJxsper/advancedreports")
                 credentials {
-                    username = project.findProperty("gpr.user") as String? ?: System.getenv("USERNAME")
-                    password = project.findProperty("gpr.key") as String? ?: System.getenv("TOKEN")
+                    username = providers.gradleProperty("gpr.user")
+                        .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                        .orNull
+                    password = providers.gradleProperty("gpr.token")
+                        .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                        .orNull
                 }
             }
         }

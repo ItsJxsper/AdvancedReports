@@ -5,7 +5,6 @@ import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFound
 import de.itsjxsper.advancedreports.backend.category.service.CategoryService;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryReportCountDto;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,7 @@ class CategoryControllerTest {
     class GetAllCategories {
 
         @Test
-        @DisplayName("liefert 200 mit einer paginierten Liste")
+        @DisplayName("returns 200 with a paginated list")
         void shouldReturnPagedCategories() throws Exception {
             when(categoryService.getCategories(any()))
                     .thenReturn(new PageImpl<>(List.of(categoryDto)));
@@ -66,7 +65,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("nutzt page=0 und size=100 als Voreinstellung")
+        @DisplayName("defaults to page=0 and size=100")
         void shouldUseDefaultPaging() throws Exception {
             when(categoryService.getCategories(any())).thenReturn(new PageImpl<>(List.of()));
 
@@ -76,7 +75,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("übernimmt page und size aus den Query-Parametern")
+        @DisplayName("takes page and size from the query parameters")
         void shouldHonourPagingParameters() throws Exception {
             when(categoryService.getCategories(any())).thenReturn(new PageImpl<>(List.of()));
 
@@ -92,7 +91,7 @@ class CategoryControllerTest {
     class CreateCategory {
 
         @Test
-        @DisplayName("liefert 201 mit der angelegten Kategorie")
+        @DisplayName("returns 201 with the created category")
         void shouldCreateCategory() throws Exception {
             when(categoryService.createCategory(any())).thenReturn(categoryDto);
 
@@ -104,7 +103,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 409 CATEGORY_ALREADY_EXISTS bei einer Namensdublette")
+        @DisplayName("returns 409 CATEGORY_ALREADY_EXISTS for a duplicate name")
         void shouldReturnConflict() throws Exception {
             when(categoryService.createCategory(any()))
                     .thenThrow(new CategoryAlreadyExistException("bugs"));
@@ -124,11 +123,11 @@ class CategoryControllerTest {
     class UpdateCategory {
 
         @Test
-        @DisplayName("liefert 200 mit der aktualisierten Kategorie")
+        @DisplayName("returns 200 with the updated category")
         void shouldUpdateCategory() throws Exception {
             when(categoryService.updateCategory(any())).thenReturn(categoryDto);
 
-            // Achtung: das Mapping ist "/" und nicht "" - ohne den Slash greift die Route nicht.
+            // Careful: the mapping is "/" and not "" - without the slash the route does not match.
             mockMvc.perform(patch("/api/v1/categories/")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(categoryDto)))
@@ -137,7 +136,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 CATEGORY_NOT_FOUND für eine unbekannte Kategorie")
+        @DisplayName("returns 404 CATEGORY_NOT_FOUND for an unknown category")
         void shouldReturnNotFound() throws Exception {
             when(categoryService.updateCategory(any())).thenThrow(new CategoryNotFoundException(99L));
 
@@ -154,7 +153,7 @@ class CategoryControllerTest {
     class GetCategory {
 
         @Test
-        @DisplayName("liefert 200 mit der Kategorie")
+        @DisplayName("returns 200 with the category")
         void shouldReturnCategory() throws Exception {
             when(categoryService.getCategory(1L)).thenReturn(categoryDto);
 
@@ -164,7 +163,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 CATEGORY_NOT_FOUND für eine unbekannte id")
+        @DisplayName("returns 404 CATEGORY_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() throws Exception {
             when(categoryService.getCategory(99L)).thenThrow(new CategoryNotFoundException(99L));
 
@@ -175,7 +174,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 400 METHOD_ARGUMENT_TYPE_MISMATCH für eine nicht-numerische id")
+        @DisplayName("returns 400 METHOD_ARGUMENT_TYPE_MISMATCH for a non-numeric id")
         void shouldRejectNonNumericId() throws Exception {
             mockMvc.perform(get("/api/v1/categories/abc"))
                     .andExpect(status().isBadRequest())
@@ -188,7 +187,7 @@ class CategoryControllerTest {
     class GetCategoryWithReports {
 
         @Test
-        @DisplayName("liefert 200 mit der Kategorie inklusive Reports")
+        @DisplayName("returns 200 with the category including its reports")
         void shouldReturnCategoryWithReports() throws Exception {
             when(categoryService.getCategoryWithReports(1L)).thenReturn(categoryDto);
 
@@ -205,7 +204,7 @@ class CategoryControllerTest {
     class DeleteCategory {
 
         @Test
-        @DisplayName("liefert 204 ohne Body")
+        @DisplayName("returns 204 with no body")
         void shouldDeleteCategory() throws Exception {
             mockMvc.perform(delete("/api/v1/categories/1"))
                     .andExpect(status().isNoContent())
@@ -215,7 +214,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 CATEGORY_NOT_FOUND für eine unbekannte id")
+        @DisplayName("returns 404 CATEGORY_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() throws Exception {
             doThrow(new CategoryNotFoundException(99L)).when(categoryService).deleteCategory(99L);
 
@@ -226,11 +225,11 @@ class CategoryControllerTest {
     }
 
     @Nested
-    @DisplayName("Zähl- und Auswertungsendpunkte")
+    @DisplayName("Count and aggregation endpoints")
     class CountEndpoints {
 
         @Test
-        @DisplayName("GET /count liefert 200 mit der Gesamtanzahl")
+        @DisplayName("GET /count returns 200 with the total count")
         void shouldReturnCount() throws Exception {
             when(categoryService.countCategories()).thenReturn(7L);
 
@@ -240,7 +239,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("GET /reports/count liefert 200 mit den Reportzahlen je Kategorie")
+        @DisplayName("GET /reports/count returns 200 with the report counts per category")
         void shouldReturnReportCountsPerCategory() throws Exception {
             when(categoryService.countCategoriesByReportCount()).thenReturn(List.of(
                     new CategoryReportCountDto(1L, "bugs", 3L),
@@ -254,7 +253,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("GET /reports/active liefert 200 mit den Kategorien mit aktiven Reports")
+        @DisplayName("GET /reports/active returns 200 with the categories that have active reports")
         void shouldReturnCategoriesWithActiveReports() throws Exception {
             when(categoryService.getCategoriesWithActiveReports()).thenReturn(List.of(categoryDto));
 
@@ -265,29 +264,17 @@ class CategoryControllerTest {
     }
 
     /**
-     * Bean-Validation und Body-Parsing werden aktuell alle auf 500 abgebildet, siehe die
-     * {@code @Disabled}-Begründungen unten. Die Soll-Tests bleiben stehen, damit der Fix sofort
-     * sichtbar wird; die Ist-Tests halten das heutige Verhalten fest.
+     * Bean validation and body parsing run through ResponseEntityExceptionHandler, which
+     * GlobalExceptionHandler extends. Without that inheritance the
+     * {@code @ExceptionHandler(Exception.class)} safety net catches the framework exceptions too
+     * and turns every client error into a 500.
      */
     @Nested
-    @DisplayName("Framework-Fehlerabbildung")
+    @DisplayName("Framework error mapping")
     class Validation {
 
-        private static final String VALIDATION_BUG =
-                "BUG: GlobalExceptionHandler (exceptions/GlobalExceptionHandler.java:120) hat einen "
-                        + "@ExceptionHandler(Exception.class) als Auffangnetz. Der "
-                        + "ExceptionHandlerExceptionResolver laeuft vor Springs "
-                        + "DefaultHandlerExceptionResolver, deshalb faengt dieses Auffangnetz auch "
-                        + "MethodArgumentNotValidException und HttpMessageNotReadableException ab. "
-                        + "Jeder Eingabefehler des Clients wird dadurch zu 500 INTERNAL_SERVER_ERROR "
-                        + "mit der Meldung 'An unexpected error occurred.' statt zu 400 - Clients "
-                        + "koennen ihren eigenen Fehler nicht von einem Serverfehler unterscheiden. "
-                        + "Fix: GlobalExceptionHandler von ResponseEntityExceptionHandler ableiten "
-                        + "oder eigene Handler fuer die beiden Exceptions ergaenzen.";
-
         @Test
-        @Disabled(VALIDATION_BUG)
-        @DisplayName("liefert 400, wenn der Name kürzer als 3 Zeichen ist")
+        @DisplayName("returns 400 when the name is shorter than 3 characters")
         void shouldRejectTooShortName() throws Exception {
             CategoryDto invalid = new CategoryDto(1L, "ab", "Bugs", "Fehlermeldungen", 60L, true);
 
@@ -298,8 +285,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @Disabled(VALIDATION_BUG)
-        @DisplayName("liefert 400, wenn cooldownSec negativ ist")
+        @DisplayName("returns 400 when cooldownSec is negative")
         void shouldRejectNegativeCooldown() throws Exception {
             CategoryDto invalid = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen", -1L, true);
 
@@ -310,8 +296,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @Disabled(VALIDATION_BUG)
-        @DisplayName("liefert 400 bei kaputtem JSON")
+        @DisplayName("returns 400 for malformed JSON")
         void shouldRejectMalformedJson() throws Exception {
             mockMvc.perform(post("/api/v1/categories")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -320,31 +305,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass eine Validierungsverletzung aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnValidationFailure() throws Exception {
-            CategoryDto invalid = new CategoryDto(1L, "ab", "Bugs", "Fehlermeldungen", 60L, true);
-
-            mockMvc.perform(post("/api/v1/categories")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(invalid)))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"))
-                    .andExpect(jsonPath("$.message").value("An unexpected error occurred."));
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass kaputtes JSON aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnMalformedJson() throws Exception {
-            mockMvc.perform(post("/api/v1/categories")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{ not json"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
-
-        @Test
-        @Disabled(VALIDATION_BUG)
-        @DisplayName("liefert 415, wenn der Content-Type nicht JSON ist")
+        @DisplayName("returns 415 when the content type is not JSON")
         void shouldRejectUnsupportedMediaType() throws Exception {
             mockMvc.perform(post("/api/v1/categories")
                             .contentType(MediaType.TEXT_PLAIN)
@@ -353,14 +314,7 @@ class CategoryControllerTest {
         }
 
         @Test
-        @Disabled("BUG: GlobalExceptionHandler behandelt "
-                + "org.springframework.web.server.MethodNotAllowedException "
-                + "(exceptions/GlobalExceptionHandler.java:21) - das ist die reaktive Variante aus "
-                + "WebFlux. Dieses Backend laeuft auf Spring MVC (spring-boot-starter-webmvc) und "
-                + "wirft HttpRequestMethodNotSupportedException, eine voellig andere Klasse. Der "
-                + "Handler feuert daher nie, ApiErrorCode.METHOD_NOT_ALLOWED ist toter Code und eine "
-                + "falsche HTTP-Methode landet ueber das Auffangnetz bei 500.")
-        @DisplayName("liefert 405 METHOD_NOT_ALLOWED bei einer falschen HTTP-Methode")
+        @DisplayName("returns 405 METHOD_NOT_ALLOWED for a wrong HTTP method")
         void shouldRejectWrongHttpMethod() throws Exception {
             mockMvc.perform(put("/api/v1/categories/1")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -369,24 +323,5 @@ class CategoryControllerTest {
                     .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass ein falscher Content-Type aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnWrongContentType() throws Exception {
-            mockMvc.perform(post("/api/v1/categories")
-                            .contentType(MediaType.TEXT_PLAIN)
-                            .content("bugs"))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass eine falsche HTTP-Methode aktuell 500 liefert")
-        void shouldCurrentlyReturnServerErrorOnWrongHttpMethod() throws Exception {
-            mockMvc.perform(put("/api/v1/categories/1")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(categoryDto)))
-                    .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.code").value("INTERNAL_SERVER_ERROR"));
-        }
     }
 }

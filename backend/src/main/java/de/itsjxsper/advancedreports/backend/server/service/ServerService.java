@@ -43,7 +43,8 @@ public class ServerService {
         return serverMapper.toDto(serverEntity);
     }
 
-    @Transactional
+    // No own @Transactional: a pure read stays inside the class-level read-only transaction,
+    // otherwise dirty checking runs for every loaded page as well.
     public Page<ServerDto> getAllServers(int page, int size) {
         log.debug("Getting all servers with page={} and size={}", page, size);
 
@@ -67,9 +68,22 @@ public class ServerService {
         return serverMapper.toDto(savedEntity);
     }
 
+    // Without its own @Transactional the deletion ran inside the class-level read-only
+    // transaction: Hibernate sets FlushMode.MANUAL there, the DELETE was never flushed and the
+    // endpoint reported 204 even though the server stayed retrievable afterwards.
+    @Transactional
     public void deleteServer(UUID serverUUID) {
         log.debug("Deleting server with serverUUID={}", serverUUID);
-        this.serverRepository.deleteById(serverUUID);
+
+        ServerEntity serverEntity = this.serverRepository.findById(serverUUID)
+                .orElseThrow(() -> new ServerNotFoundException(serverUUID));
+
+        // reports_entity.server is nullable: the reports get detached instead of deleted along
+        // with the server. Previously orphanRemoval removed them together with it.
+        serverEntity.getReportsEntitiesEntities().forEach(report -> report.setServer(null));
+        serverEntity.getReportsEntitiesEntities().clear();
+
+        this.serverRepository.delete(serverEntity);
         log.debug("Deleted server with serverUUID={}", serverUUID);
     }
 
@@ -79,6 +93,12 @@ public class ServerService {
 
 
     public long countReportsForServer(UUID serverUUID) {
+        // Without an existence check an unknown UUID returns 0 - indistinguishable from a
+        // registered server that has no reports.
+        if (!this.serverRepository.existsById(serverUUID)) {
+            throw new ServerNotFoundException(serverUUID);
+        }
+
         return this.serverRepository.countReportsByServerUuid(serverUUID);
     }
 

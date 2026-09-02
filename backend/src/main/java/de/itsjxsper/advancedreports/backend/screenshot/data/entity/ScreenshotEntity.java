@@ -5,7 +5,9 @@ import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -19,7 +21,8 @@ public class ScreenshotEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    @Column(name = "s_3_url")
+    // "s_3_url" was a hand-pinned artefact of the naming strategy.
+    @Column(name = "s3_url")
     private String s3Url;
 
     @Column(name = "s3_object_key", unique = true)
@@ -38,7 +41,13 @@ public class ScreenshotEntity {
     @Enumerated(EnumType.STRING)
     private UploadStatus uploadStatus;
 
-    @OneToMany(mappedBy = "screenshotEntity", orphanRemoval = true)
+    // No orphanRemoval: a deleted screenshot is a removed attachment, not a reason to destroy the
+    // report. reports_entity.screenshot is nullable and gets detached.
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @OneToMany(mappedBy = "screenshotEntity")
     private Set<ReportsEntity> reportsEntities = new LinkedHashSet<>();
 
 }

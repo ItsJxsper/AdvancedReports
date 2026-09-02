@@ -33,7 +33,7 @@ class ScreenshotMapperTest {
     class ToDto {
 
         @Test
-        @DisplayName("überträgt alle Metadatenfelder")
+        @DisplayName("carries every metadata field")
         void shouldMapAllFields() {
             ScreenshotDto dto = mapper.toScreenshotDto(entity);
 
@@ -47,7 +47,7 @@ class ScreenshotMapperTest {
         }
 
         @Test
-        @DisplayName("liefert null für eine null-Entity")
+        @DisplayName("returns null for a null entity")
         void shouldMapNullToNull() {
             assertThat(mapper.toScreenshotDto(null)).isNull();
         }
@@ -58,7 +58,7 @@ class ScreenshotMapperTest {
     class ToEntity {
 
         @Test
-        @DisplayName("baut eine Entity aus einem ScreenshotUpdateDto")
+        @DisplayName("builds an entity from a ScreenshotUpdateDto")
         void shouldMapFromUpdateDto() {
             ScreenshotUpdateDto dto = TestDataFactory.screenshotUpdateDto(OBJECT_KEY);
 
@@ -72,7 +72,7 @@ class ScreenshotMapperTest {
         }
 
         @Test
-        @DisplayName("baut eine Entity aus einem vollständigen ScreenshotDto")
+        @DisplayName("builds an entity from a complete ScreenshotDto")
         void shouldMapFromDto() {
             ScreenshotDto dto = new ScreenshotDto(9L, "https://example.invalid/x", OBJECT_KEY,
                     "screenshot.png", "image/png", 2048L, UploadStatus.PENDING);
@@ -90,7 +90,7 @@ class ScreenshotMapperTest {
     class PartialUpdate {
 
         @Test
-        @DisplayName("überschreibt nur die gesetzten Felder eines ScreenshotUpdateDto")
+        @DisplayName("overwrites only the fields set on a ScreenshotUpdateDto")
         void shouldIgnoreNullValuesFromUpdateDto() {
             ScreenshotUpdateDto dto = new ScreenshotUpdateDto(null, null, null, null,
                     4096L, UploadStatus.FAILED);
@@ -106,7 +106,7 @@ class ScreenshotMapperTest {
         }
 
         @Test
-        @DisplayName("überschreibt nur die gesetzten Felder eines ScreenshotDto")
+        @DisplayName("overwrites only the fields set on a ScreenshotDto")
         void shouldIgnoreNullValuesFromDto() {
             ScreenshotDto dto = new ScreenshotDto(null, null, null, "neu.png", null, null, null);
 

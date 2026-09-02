@@ -1,12 +1,11 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,15 +18,15 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("E2E: Spieler")
+@DisplayName("E2E: Players")
 class PlayerE2ETest extends AbstractE2ETest {
 
     @Nested
-    @DisplayName("Lebenszyklus")
+    @DisplayName("Lifecycle")
     class Lifecycle {
 
         @Test
-        @DisplayName("legt einen Spieler an, liest, umbenennt und löscht ihn wieder")
+        @DisplayName("creates a player, reads, renames and deletes them again")
         void shouldRunFullCrudCycle() {
             UUID playerUuid = UUID.randomUUID();
 
@@ -67,7 +66,7 @@ class PlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("zählt und listet Spieler")
+        @DisplayName("counts and lists players")
         void shouldCountAndListPlayers() {
             ApiFixtures.createPlayer(client(), "Notch");
             ApiFixtures.createPlayer(client(), "Jeb");
@@ -92,11 +91,11 @@ class PlayerE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Fehlerfälle")
+    @DisplayName("Error cases")
     class ErrorCases {
 
         @Test
-        @DisplayName("antwortet mit 409 PLAYER_ALREADY_EXISTS auf eine doppelte UUID")
+        @DisplayName("answers 409 PLAYER_ALREADY_EXISTS for a duplicate UUID")
         void shouldRejectDuplicateUuid() {
             UUID playerUuid = UUID.randomUUID();
             ApiFixtures.createPlayer(client(), playerUuid, "Notch");
@@ -113,7 +112,7 @@ class PlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 PLAYER_NOT_FOUND für eine unbekannte UUID")
+        @DisplayName("answers 404 PLAYER_NOT_FOUND for an unknown UUID")
         void shouldReturnNotFound() {
             ResponseEntity<ApiErrorResponse> response = client().get()
                     .uri("/api/v1/player/{uuid}", UUID.randomUUID())
@@ -125,7 +124,7 @@ class PlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 beim Aktualisieren eines unbekannten Spielers")
+        @DisplayName("answers 404 when updating an unknown player")
         void shouldReturnNotFoundOnUpdate() {
             ResponseEntity<ApiErrorResponse> response = client().patch()
                     .uri("/api/v1/player")
@@ -140,16 +139,11 @@ class PlayerE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Teil-Update ohne Namen")
+    @DisplayName("Partial update without a name")
     class PartialUpdate {
 
         @Test
-        @Disabled("BUG: PlayerService#updatePlayer (player/service/PlayerService.java:47) ruft "
-                + "playerName().orElse(null) und ueberschreibt den Namen daher mit null, sobald das "
-                + "Optional leer ist. Die Spalte player_name ist nullable = false, das Update "
-                + "scheitert also an der Datenbank und wird als 500 gemeldet. Erwartet wird, dass ein "
-                + "fehlender Name den bestehenden unangetastet laesst.")
-        @DisplayName("behält den bestehenden Namen, wenn kein Name mitgeschickt wird")
+        @DisplayName("keeps the existing name when no name is sent")
         void shouldKeepNameWhenAbsent() {
             UUID playerUuid = UUID.randomUUID();
             ApiFixtures.createPlayer(client(), playerUuid, "Notch");
@@ -166,22 +160,5 @@ class PlayerE2ETest extends AbstractE2ETest {
             assertThat(response.getBody().playerName()).isEqualTo("Notch");
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass ein Update ohne Namen aktuell mit 500 scheitert")
-        void shouldCurrentlyFailWhenNameAbsent() {
-            UUID playerUuid = UUID.randomUUID();
-            ApiFixtures.createPlayer(client(), playerUuid, "Notch");
-
-            ResponseEntity<ApiErrorResponse> response = client().patch()
-                    .uri("/api/v1/player")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(new de.itsjxsper.advancedreports.common.model.player.PlayerUpdateDTO(
-                            playerUuid, Optional.empty()))
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
-        }
     }
 }

@@ -3,8 +3,10 @@ package de.itsjxsper.advancedreports.backend.category.service;
 import de.itsjxsper.advancedreports.backend.category.data.entity.CategoryEntity;
 import de.itsjxsper.advancedreports.backend.category.data.repository.CategoryRepository;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryAlreadyExistException;
+import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryInUseException;
 import de.itsjxsper.advancedreports.backend.category.exceptions.CategoryNotFoundException;
 import de.itsjxsper.advancedreports.backend.category.mapper.CategoryMapper;
+import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryReportCountDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,7 +55,7 @@ class CategoryServiceTest {
         categoryEntity.setDisplayName("Bugs");
         categoryEntity.setDescription("Fehlermeldungen und Bugreports");
         categoryEntity.setCooldownSec(60L);
-        // "active" ist final mit Default true in CategoryEntity und kann nicht gesetzt werden
+        // "active" is final with a default of true in CategoryEntity and cannot be set
 
         categoryDto = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen und Bugreports", 60L, true);
     }
@@ -62,7 +65,7 @@ class CategoryServiceTest {
     class CreateCategory {
 
         @Test
-        @DisplayName("legt eine neue Kategorie an, wenn der Name noch nicht existiert")
+        @DisplayName("creates a new category when the name does not exist yet")
         void shouldCreateCategoryWhenNameDoesNotExist() {
             when(categoryRepository.findByName(categoryDto.name())).thenReturn(Optional.empty());
             when(categoryMapper.toEntity(categoryDto)).thenReturn(categoryEntity);
@@ -76,7 +79,7 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("wirft CategoryAlreadyExistException, wenn der Name bereits existiert")
+        @DisplayName("throws CategoryAlreadyExistException when the name already exists")
         void shouldThrowWhenNameAlreadyExists() {
             when(categoryRepository.findByName(categoryDto.name()))
                     .thenReturn(Optional.of(categoryEntity));
@@ -93,15 +96,15 @@ class CategoryServiceTest {
     class UpdateCategory {
 
         @Test
-        @DisplayName("aktualisiert eine bestehende Kategorie")
+        @DisplayName("updates an existing category")
         void shouldUpdateCategory() {
             var updatedDto = new CategoryDto(1L, "feature-requests", "Feature Requests",
-                    "Wünsche für neue Features", 120L, true);
+                    "Requests for new features", 120L, true);
             var updatedEntity = new CategoryEntity();
             updatedEntity.setId(1L);
             updatedEntity.setName("feature-requests");
             updatedEntity.setDisplayName("Feature Requests");
-            updatedEntity.setDescription("Wünsche für neue Features");
+            updatedEntity.setDescription("Requests for new features");
             updatedEntity.setCooldownSec(120L);
 
             when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
@@ -118,7 +121,7 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
+        @DisplayName("throws CategoryNotFoundException when the category does not exist")
         void shouldThrowWhenCategoryNotFound() {
             when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
 
@@ -129,10 +132,10 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("wirft CategoryAlreadyExistException, wenn der neue Name bereits vergeben ist")
+        @DisplayName("throws CategoryAlreadyExistException when the new name is already taken")
         void shouldThrowWhenNewNameAlreadyExists() {
             var updatedDto = new CategoryDto(1L, "feature-requests", "Feature Requests",
-                    "Wünsche für neue Features", 120L, true);
+                    "Requests for new features", 120L, true);
 
             when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
             when(categoryRepository.existsByName(updatedDto.name())).thenReturn(true);
@@ -144,7 +147,7 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("prüft existsByName nicht, wenn sich der Name nicht ändert")
+        @DisplayName("does not consult existsByName when the name is unchanged")
         void shouldNotCheckExistsByNameWhenNameUnchanged() {
             when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
             when(categoryMapper.partialUpdate(categoryDto, categoryEntity)).thenReturn(categoryEntity);
@@ -162,9 +165,9 @@ class CategoryServiceTest {
     class DeleteCategory {
 
         @Test
-        @DisplayName("löscht eine bestehende Kategorie")
+        @DisplayName("deletes an existing category")
         void shouldDeleteCategory() {
-            when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
 
             categoryService.deleteCategory(1L);
 
@@ -172,9 +175,21 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
+        @DisplayName("throws CategoryInUseException when reports are still attached to the category")
+        void shouldRejectDeletingCategoryWithReports() {
+            categoryEntity.getReportsEntities().add(new ReportsEntity());
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
+
+            assertThatThrownBy(() -> categoryService.deleteCategory(1L))
+                    .isInstanceOf(CategoryInUseException.class);
+
+            verify(categoryRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("throws CategoryNotFoundException when the category does not exist")
         void shouldThrowWhenCategoryNotFound() {
-            when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
+            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.deleteCategory(1L))
                     .isInstanceOf(CategoryNotFoundException.class);
@@ -188,20 +203,21 @@ class CategoryServiceTest {
     class GetCategory {
 
         @Test
-        @DisplayName("liefert eine Kategorie mit Reports zurück")
+        @DisplayName("returns a category without the report graph")
         void shouldReturnCategory() {
-            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
+            when(categoryRepository.findById(1L)).thenReturn(Optional.of(categoryEntity));
             when(categoryMapper.toDto(categoryEntity)).thenReturn(categoryDto);
 
             CategoryDto result = categoryService.getCategory(1L);
 
             assertThat(result).isEqualTo(categoryDto);
+            verify(categoryRepository, never()).findWithReportsById(anyLong());
         }
 
         @Test
-        @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
+        @DisplayName("throws CategoryNotFoundException when the category does not exist")
         void shouldThrowWhenNotFound() {
-            when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
+            when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> categoryService.getCategory(1L))
                     .isInstanceOf(CategoryNotFoundException.class);
@@ -213,7 +229,7 @@ class CategoryServiceTest {
     class GetCategoryWithReports {
 
         @Test
-        @DisplayName("lädt die Kategorie über den EntityGraph inklusive Reports")
+        @DisplayName("loads the category including its reports through the entity graph")
         void shouldReturnCategoryWithReports() {
             when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.of(categoryEntity));
             when(categoryMapper.toDto(categoryEntity)).thenReturn(categoryDto);
@@ -225,7 +241,7 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("wirft CategoryNotFoundException, wenn die Kategorie nicht existiert")
+        @DisplayName("throws CategoryNotFoundException when the category does not exist")
         void shouldThrowWhenNotFound() {
             when(categoryRepository.findWithReportsById(1L)).thenReturn(Optional.empty());
 
@@ -239,7 +255,7 @@ class CategoryServiceTest {
     class CountCategoriesByReportCount {
 
         @Test
-        @DisplayName("projiziert die Object[]-Zeilen der Query auf CategoryReportCountDto")
+        @DisplayName("projects the query's Object[] rows onto CategoryReportCountDto")
         void shouldProjectRowsToDto() {
             when(categoryRepository.countReportsPerCategory()).thenReturn(List.of(
                     new Object[]{1L, "bugs", 3L},
@@ -253,7 +269,7 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("liefert eine leere Liste, wenn keine Kategorien existieren")
+        @DisplayName("returns an empty list when no categories exist")
         void shouldReturnEmptyList() {
             when(categoryRepository.countReportsPerCategory()).thenReturn(List.of());
 
@@ -266,7 +282,7 @@ class CategoryServiceTest {
     class CountCategories {
 
         @Test
-        @DisplayName("gibt die Gesamtanzahl der Kategorien zurück")
+        @DisplayName("returns the total number of categories")
         void shouldReturnCategoryCount() {
             when(categoryRepository.count()).thenReturn(5L);
 
@@ -281,7 +297,7 @@ class CategoryServiceTest {
     class GetCategories {
 
         @Test
-        @DisplayName("liefert eine paginierte Liste von Kategorien zurück")
+        @DisplayName("returns a paginated list of categories")
         void shouldReturnPagedCategories() {
             Pageable pageable = PageRequest.of(0, 10);
             Page<CategoryEntity> entityPage = new PageImpl<>(List.of(categoryEntity));
@@ -300,7 +316,7 @@ class CategoryServiceTest {
     class GetCategoriesWithActiveReports {
 
         @Test
-        @DisplayName("liefert nur Kategorien mit aktiven Reports zurück")
+        @DisplayName("returns only categories with active reports")
         void shouldReturnCategoriesWithActiveReports() {
             when(categoryRepository.findCategoriesWithActiveReports())
                     .thenReturn(List.of(categoryEntity));
@@ -312,7 +328,7 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("liefert eine leere Liste, wenn keine Kategorien aktive Reports haben")
+        @DisplayName("returns an empty list when no category has active reports")
         void shouldReturnEmptyListWhenNoneHaveActiveReports() {
             when(categoryRepository.findCategoriesWithActiveReports()).thenReturn(List.of());
 

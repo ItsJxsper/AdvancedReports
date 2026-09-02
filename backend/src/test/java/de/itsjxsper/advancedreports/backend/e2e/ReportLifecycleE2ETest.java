@@ -1,14 +1,15 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
 import de.itsjxsper.advancedreports.backend.config.RabbitMQConfiguration;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorCode;
-import de.itsjxsper.advancedreports.backend.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
 import de.itsjxsper.advancedreports.backend.support.DbFixtures;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * through create → read → update → delete over real HTTP, while checking that the corresponding
  * RabbitMQ notifications actually land on the broker.
  */
-@DisplayName("E2E: Report-Lebenszyklus")
+@DisplayName("E2E: Report lifecycle")
 class ReportLifecycleE2ETest extends AbstractE2ETest {
 
     @Autowired
@@ -59,19 +60,19 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         handler = ApiFixtures.createPlayer(client(), "Handler");
         category = ApiFixtures.createCategory(client(), "cheating");
         screenshotId = ApiFixtures.createScreenshot(client()).id();
-        // Der Server muss per SQL entstehen, weil POST /api/v1/servers nicht benutzbar ist -
-        // siehe ServerE2ETest.
+        // The server has to be created through SQL because POST /api/v1/servers is unusable -
+        // see ServerE2ETest.
         serverUuid = DbFixtures.insertServer(dataSource);
 
         drainPluginQueue();
     }
 
-    private ReportUpdateDto newReport() {
-        return new ReportUpdateDto(
+    private ReportCreateDto newReport() {
+        return new ReportCreateDto(
                 reporter.playerUUID(),
                 reported.playerUUID(),
                 category.id(),
-                "Fliegt seit fünf Minuten über der Spawn-Insel",
+                "Flying over the spawn island for five minutes",
                 serverUuid,
                 "world:120:80:-340",
                 ReportStatus.PENDING,
@@ -80,7 +81,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
                 screenshotId);
     }
 
-    private ResponseEntity<ReportDto> postReport(ReportUpdateDto body) {
+    private ResponseEntity<ReportDto> postReport(ReportCreateDto body) {
         return client().post()
                 .uri("/api/v1/reports")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -121,11 +122,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Anlegen")
+    @DisplayName("Creating")
     class Creating {
 
         @Test
-        @DisplayName("legt einen Report an und liefert ihn mit id zurück")
+        @DisplayName("creates a report and returns it with an id")
         void shouldCreateReport() {
             ResponseEntity<ReportDto> response = postReport(newReport());
 
@@ -145,7 +146,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("veröffentlicht ein report.created-Event auf dem Fanout-Exchange")
+        @DisplayName("publishes a report.created event on the fanout exchange")
         void shouldPublishReportCreatedEvent() {
             ResponseEntity<ReportDto> response = postReport(newReport());
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -160,10 +161,10 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 SERVER_NOT_FOUND für einen unbekannten Server")
+        @DisplayName("answers 404 SERVER_NOT_FOUND for an unknown server")
         void shouldRejectUnknownServer() {
-            ReportUpdateDto withUnknownServer = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
+            ReportCreateDto withUnknownServer = new ReportCreateDto(
+                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Reason",
                     UUID.randomUUID(), "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(),
                     null, screenshotId);
 
@@ -179,28 +180,10 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("""
-                BUG (blockierend fuer den Hauptanwendungsfall): Ein Report ohne screenshotId laesst \
-                sich nicht anlegen. Der generierte ReportMapperImpl#toEntity erzeugt fuer jede \
-                verschachtelte Assoziation bedingungslos ein Objekt und prueft nur das aeussere DTO \
-                auf null. Bei screenshotId = null entsteht daher eine ScreenshotEntity mit id = null. \
-                ReportService ersetzt sie nur, wenn screenshotId gesetzt ist, also bleibt die \
-                transiente Instanz haengen und @ManyToOne ohne Cascade laesst den Insert scheitern:
-                
-                  org.hibernate.TransientPropertyValueException: Persistent instance of \
-                  'ReportsEntity' references an unsaved transient instance of 'ScreenshotEntity' \
-                  [ReportsEntity.screenshotEntity -> ScreenshotEntity]
-                
-                Nach aussen kommt daraus 500 INTERNAL_SERVER_ERROR. Dasselbe gilt fuer serverUUID = \
-                null. Ein Report ist damit nur anlegbar, wenn serverUUID UND screenshotId gesetzt \
-                sind - fuer den Normalfall 'Report ohne Screenshot' ist die Kernfunktion des Systems \
-                unbenutzbar. Fix: die Assoziationen nicht im Mapper aufbauen (@Mapping(target = ..., \
-                ignore = true)) und ausschliesslich im Service aus der Datenbank laden. Siehe \
-                reports/mapper/ReportMapper.java:22-37 und reports/service/ReportService.java:45-71.""")
-        @DisplayName("legt einen Report ohne Screenshot an")
+        @DisplayName("creates a report without a screenshot")
         void shouldCreateReportWithoutScreenshot() {
-            ReportUpdateDto withoutScreenshot = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
+            ReportCreateDto withoutScreenshot = new ReportCreateDto(
+                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Reason",
                     serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, null);
 
             ResponseEntity<ReportDto> response = postReport(withoutScreenshot);
@@ -210,45 +193,10 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass ein Report ohne Screenshot aktuell mit 500 scheitert")
-        void shouldCurrentlyFailWithoutScreenshot() {
-            ReportUpdateDto withoutScreenshot = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
-                    serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, null);
-
-            ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/reports")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(withoutScreenshot)
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass ein Report ohne Server aktuell mit 500 scheitert")
-        void shouldCurrentlyFailWithoutServer() {
-            ReportUpdateDto withoutServer = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
-                    null, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, screenshotId);
-
-            ResponseEntity<ApiErrorResponse> response = client().post()
-                    .uri("/api/v1/reports")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(withoutServer)
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
-        @Test
-        @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND für einen unbekannten Screenshot")
+        @DisplayName("answers 404 SCREENSHOT_NOT_FOUND for an unknown screenshot")
         void shouldRejectUnknownScreenshot() {
-            ReportUpdateDto withUnknownScreenshot = new ReportUpdateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
+            ReportCreateDto withUnknownScreenshot = new ReportCreateDto(
+                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Reason",
                     serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(),
                     null, 9_999L);
 
@@ -265,11 +213,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Lesen, Ändern und Löschen")
+    @DisplayName("Reading, updating and deleting")
     class ReadUpdateDelete {
 
         @Test
-        @DisplayName("liest einen angelegten Report über seine id")
+        @DisplayName("reads a created report by its id")
         void shouldReadReport() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -280,21 +228,21 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().reason())
-                    .isEqualTo("Fliegt seit fünf Minuten über der Spawn-Insel");
+                    .isEqualTo("Flying over the spawn island for five minutes");
         }
 
         @Test
-        @DisplayName("ändert den Status und veröffentlicht ein report.updated-Event")
+        @DisplayName("changes the status and publishes a report.updated event")
         void shouldUpdateStatusAndPublishEvent() {
             Long reportId = postReport(newReport()).getBody().id();
             drainPluginQueue();
 
-            // reporterUUID muss mitgeschickt werden, obwohl es sich nicht ändert: ReportUpdateDto
-            // markiert das Feld mit @NotNull und der Controller validiert mit @Valid, siehe
+            // reporterUUID is sent deliberately here, to show that a PATCH may also carry
+            // unchanged fields. That it can be omitted is covered by
             // shouldUpdateOnlyTheStatus.
             ReportUpdateDto statusChange = new ReportUpdateDto(
                     reporter.playerUUID(), null, null, null, null, null,
-                    ReportStatus.APPROVED, null, "Bestätigt und gebannt", null);
+                    ReportStatus.APPROVED, null, "Confirmed and banned", null);
 
             ResponseEntity<ReportDto> response = client().patch()
                     .uri("/api/v1/reports/{id}", reportId)
@@ -305,7 +253,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().reportStatus()).isEqualTo(ReportStatus.APPROVED);
-            assertThat(response.getBody().handlerNote()).isEqualTo("Bestätigt und gebannt");
+            assertThat(response.getBody().handlerNote()).isEqualTo("Confirmed and banned");
 
             String body = receiveEventBody();
 
@@ -317,43 +265,39 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("setzt updatedAt, sichtbar beim erneuten Lesen des Reports")
+        @DisplayName("advances updatedAt, visible when the report is read again")
         void shouldSetUpdatedAtOnPatch() {
-            Long reportId = postReport(newReport()).getBody().id();
+            ReportDto created = postReport(newReport()).getBody();
+
+            // @UpdateTimestamp sets the value on insert already, not only on the first change -
+            // unlike the earlier @PreUpdate, which left updatedAt null until then.
+            assertThat(created.updatedAt()).isNotNull();
 
             ReportUpdateDto statusChange = new ReportUpdateDto(
                     reporter.playerUUID(), null, null, null, null, null,
                     ReportStatus.APPROVED, null, null, null);
 
-            ResponseEntity<ReportDto> patched = client().patch()
-                    .uri("/api/v1/reports/{id}", reportId)
+            client().patch()
+                    .uri("/api/v1/reports/{id}", created.id())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(statusChange)
                     .retrieve()
-                    .toEntity(ReportDto.class);
-
-            // @PreUpdate feuert erst beim Flush am Transaktionsende, also nachdem ReportService das
-            // Antwort-DTO gemappt hat - in der PATCH-Antwort ist updatedAt daher noch leer.
-            assertThat(patched.getBody().updatedAt()).isNull();
+                    .toBodilessEntity();
 
             ResponseEntity<ReportDto> reread = client().get()
-                    .uri("/api/v1/reports/{id}", reportId)
+                    .uri("/api/v1/reports/{id}", created.id())
                     .retrieve()
                     .toEntity(ReportDto.class);
 
-            assertThat(reread.getBody().updatedAt()).isNotNull();
+            // The new timestamp only comes into being at the flush at transaction end, so after the
+            // PATCH response was mapped - it therefore becomes visible when reading again.
+            assertThat(reread.getBody().updatedAt()).isAfter(created.updatedAt());
+            assertThat(reread.getBody().createdAt()).isEqualTo(created.createdAt());
             assertThat(reread.getBody().reportStatus()).isEqualTo(ReportStatus.APPROVED);
         }
 
         @Test
-        @org.junit.jupiter.api.Disabled("BUG: ReportUpdateDto#reporterUUID ist mit @NotNull annotiert "
-                + "(common ReportUpdateDto), und ReportController#updateReport validiert den Body mit "
-                + "@Valid. Ein PATCH kann daher nie nur den Status aendern - der Aufrufer muss die "
-                + "reporterUUID mitschicken, obwohl sie sich nicht aendert. Das DTO wird fuer POST "
-                + "(wo @NotNull sinnvoll ist) und fuer PATCH (wo es falsch ist) doppelt verwendet. "
-                + "Wegen des Auffangnetzes im GlobalExceptionHandler kommt daraus zudem 500 statt 400. "
-                + "Fix: ein eigenes ReportPatchDto ohne @NotNull, oder @Validated-Gruppen.")
-        @DisplayName("ändert ausschließlich den Status, ohne weitere Felder mitzuschicken")
+        @DisplayName("changes the status only, without sending any other field")
         void shouldUpdateOnlyTheStatus() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -372,26 +316,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass ein PATCH ohne reporterUUID mit 500 scheitert")
-        void shouldCurrentlyRejectPatchWithoutReporterUuid() {
-            Long reportId = postReport(newReport()).getBody().id();
-
-            ReportUpdateDto onlyStatus = new ReportUpdateDto(
-                    null, null, null, null, null, null, ReportStatus.REJECTED, null, null, null);
-
-            ResponseEntity<ApiErrorResponse> response = client().patch()
-                    .uri("/api/v1/reports/{id}", reportId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(onlyStatus)
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.INTERNAL_SERVER_ERROR);
-        }
-
-        @Test
-        @DisplayName("listet Reports paginiert und meldet die Gesamtanzahl")
+        @DisplayName("lists reports with pagination and reports the total count")
         void shouldListReports() {
             postReport(newReport());
             postReport(newReport());
@@ -413,7 +338,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("löscht einen Report und liefert ihn danach nicht mehr aus")
+        @DisplayName("deletes a report and stops serving it afterwards")
         void shouldDeleteReport() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -431,7 +356,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 REPORT_NOT_FOUND für eine unbekannte id")
+        @DisplayName("answers 404 REPORT_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() {
             ResponseEntity<ApiErrorResponse> response = client().get()
                     .uri("/api/v1/reports/9999")
@@ -444,11 +369,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Auswirkungen auf andere Domains")
+    @DisplayName("Effects on other domains")
     class CrossDomainEffects {
 
         @Test
-        @DisplayName("erhöht die Reportanzahl des Servers")
+        @DisplayName("increases the server's report count")
         void shouldCountTowardsServer() {
             postReport(newReport());
             postReport(newReport());
@@ -463,7 +388,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("erhöht die Reportanzahl der Kategorie")
+        @DisplayName("increases the category's report count")
         void shouldCountTowardsCategory() {
             postReport(newReport());
 
@@ -477,7 +402,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("lässt die Kategorie in der Liste mit aktiven Reports auftauchen")
+        @DisplayName("makes the category appear in the list of categories with active reports")
         void shouldAppearInCategoriesWithActiveReports() {
             postReport(newReport());
 

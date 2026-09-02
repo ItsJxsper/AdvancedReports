@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Checks the JPA lifecycle behaviour that lives in the entities themselves — field initialisers and
  * {@code @PreUpdate} callbacks — rather than in any service.
  */
-@DisplayName("Entity-Lebenszyklus")
+@DisplayName("Entity lifecycle")
 class EntityLifecycleIT extends AbstractRepositoryIT {
 
     @Autowired
@@ -49,7 +49,7 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
     class Reports {
 
         @Test
-        @DisplayName("setzt createdAt beim Anlegen")
+        @DisplayName("sets createdAt on insert")
         void shouldSetCreatedAt() {
             Instant before = Instant.now();
             ReportsEntity saved = entityManager.persistAndFlush(
@@ -64,34 +64,40 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lässt updatedAt beim Anlegen leer")
-        void shouldLeaveUpdatedAtNullOnInsert() {
+        @DisplayName("sets updatedAt already on insert")
+        void shouldSetUpdatedAtOnInsert() {
             ReportsEntity saved = entityManager.persistAndFlush(
                     TestDataFactory.report(reporter, reported, handler, category, server));
             entityManager.clear();
 
-            assertThat(entityManager.find(ReportsEntity.class, saved.getId()).getUpdatedAt()).isNull();
+            ReportsEntity found = entityManager.find(ReportsEntity.class, saved.getId());
+
+            // @UpdateTimestamp writes the value on insert already. The earlier @PreUpdate without
+            // @PrePersist left updatedAt null until the first change - against a column that is
+            // not nullable.
+            assertThat(found.getUpdatedAt()).isNotNull();
         }
 
         @Test
-        @DisplayName("füllt updatedAt über @PreUpdate bei einer Änderung")
+        @DisplayName("advances updatedAt via @UpdateTimestamp on a change")
         void shouldSetUpdatedAtOnUpdate() {
             ReportsEntity saved = entityManager.persistAndFlush(
                     TestDataFactory.report(reporter, reported, handler, category, server));
+            Instant insertedAt = saved.getUpdatedAt();
 
             saved.setReportStatus(ReportStatus.APPROVED);
-            saved.setHandlerNote("Bestätigt");
+            saved.setHandlerNote("Confirmed");
             entityManager.flush();
             entityManager.clear();
 
             ReportsEntity found = entityManager.find(ReportsEntity.class, saved.getId());
 
-            assertThat(found.getUpdatedAt()).isNotNull();
+            assertThat(found.getUpdatedAt()).isNotNull().isAfterOrEqualTo(insertedAt);
             assertThat(found.getReportStatus()).isEqualTo(ReportStatus.APPROVED);
         }
 
         @Test
-        @DisplayName("speichert den Status als Text, nicht als Ordinalzahl")
+        @DisplayName("persists the status as text, not as an ordinal")
         void shouldPersistStatusAsString() {
             ReportsEntity saved = entityManager.persistAndFlush(
                     TestDataFactory.report(reporter, reported, handler, category, server));
@@ -111,7 +117,7 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
     class Categories {
 
         @Test
-        @DisplayName("ist standardmäßig aktiv")
+        @DisplayName("is active by default")
         void shouldDefaultToActive() {
             CategoryEntity saved = entityManager.persistAndFlush(TestDataFactory.category("bugs"));
             entityManager.clear();
@@ -120,7 +126,7 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("schreibt active auch in der Datenbank auf true")
+        @DisplayName("writes active as true in the database too")
         void shouldPersistActiveAsTrue() {
             CategoryEntity saved = entityManager.persistAndFlush(TestDataFactory.category("bugs"));
             entityManager.clear();
@@ -130,7 +136,7 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
                     .setParameter("id", saved.getId())
                     .getSingleResult();
 
-            // Siehe CategoryMapperTest: active ist final und laesst sich nie auf false setzen.
+            // See CategoryMapperTest: active is final and can never be set to false.
             assertThat(active).isEqualTo(Boolean.TRUE);
         }
     }

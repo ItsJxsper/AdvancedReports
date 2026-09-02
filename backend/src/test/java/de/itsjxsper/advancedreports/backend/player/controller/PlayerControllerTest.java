@@ -45,7 +45,7 @@ class PlayerControllerTest {
     class GetAllPlayers {
 
         @Test
-        @DisplayName("liefert 200 mit einer paginierten Liste")
+        @DisplayName("returns 200 with a paginated list")
         void shouldReturnPagedPlayers() throws Exception {
             when(playerService.getPlayers(any())).thenReturn(new PageImpl<>(List.of(playerDto)));
 
@@ -56,7 +56,7 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("nutzt page=0 und size=100 als Voreinstellung")
+        @DisplayName("defaults to page=0 and size=100")
         void shouldUseDefaultPaging() throws Exception {
             when(playerService.getPlayers(any())).thenReturn(new PageImpl<>(List.of()));
 
@@ -71,7 +71,7 @@ class PlayerControllerTest {
     class CreatePlayer {
 
         @Test
-        @DisplayName("liefert 201 mit dem angelegten Spieler")
+        @DisplayName("returns 201 with the created player")
         void shouldCreatePlayer() throws Exception {
             when(playerService.createPlayer(any())).thenReturn(playerDto);
 
@@ -84,7 +84,7 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liest den Namen aus dem Optional-Feld playerName")
+        @DisplayName("reads the name from the Optional field playerName")
         void shouldBindOptionalPlayerName() throws Exception {
             when(playerService.createPlayer(any())).thenReturn(playerDto);
 
@@ -97,7 +97,7 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 409 PLAYER_ALREADY_EXISTS, wenn die UUID schon vergeben ist")
+        @DisplayName("returns 409 PLAYER_ALREADY_EXISTS when the UUID is already taken")
         void shouldReturnConflict() throws Exception {
             when(playerService.createPlayer(any()))
                     .thenThrow(new PlayerAlreadyExistException(PLAYER_UUID));
@@ -116,7 +116,7 @@ class PlayerControllerTest {
     class UpdatePlayer {
 
         @Test
-        @DisplayName("liefert 200 mit dem aktualisierten Spieler")
+        @DisplayName("returns 200 with the updated player")
         void shouldUpdatePlayer() throws Exception {
             when(playerService.updatePlayer(any())).thenReturn(playerDto);
 
@@ -129,7 +129,7 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 PLAYER_NOT_FOUND für einen unbekannten Spieler")
+        @DisplayName("returns 404 PLAYER_NOT_FOUND for an unknown player")
         void shouldReturnNotFound() throws Exception {
             when(playerService.updatePlayer(any())).thenThrow(new PlayerNotFoundException(PLAYER_UUID));
 
@@ -147,7 +147,7 @@ class PlayerControllerTest {
     class GetPlayer {
 
         @Test
-        @DisplayName("liefert 200 mit dem Spieler")
+        @DisplayName("returns 200 with the player")
         void shouldReturnPlayer() throws Exception {
             when(playerService.getPlayer(PLAYER_UUID)).thenReturn(playerDto);
 
@@ -157,7 +157,7 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 PLAYER_NOT_FOUND für einen unbekannten Spieler")
+        @DisplayName("returns 404 PLAYER_NOT_FOUND for an unknown player")
         void shouldReturnNotFound() throws Exception {
             when(playerService.getPlayer(PLAYER_UUID)).thenThrow(new PlayerNotFoundException(PLAYER_UUID));
 
@@ -167,9 +167,9 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 400 METHOD_ARGUMENT_TYPE_MISMATCH für eine unlesbare UUID")
+        @DisplayName("returns 400 METHOD_ARGUMENT_TYPE_MISMATCH for an unparseable UUID")
         void shouldRejectInvalidUuid() throws Exception {
-            mockMvc.perform(get("/api/v1/player/keine-uuid"))
+            mockMvc.perform(get("/api/v1/player/not-a-uuid"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.code").value("METHOD_ARGUMENT_TYPE_MISMATCH"));
         }
@@ -180,7 +180,7 @@ class PlayerControllerTest {
     class DeletePlayer {
 
         @Test
-        @DisplayName("liefert 204 ohne Body")
+        @DisplayName("returns 204 with no body")
         void shouldDeletePlayer() throws Exception {
             mockMvc.perform(delete("/api/v1/player/{uuid}", PLAYER_UUID))
                     .andExpect(status().isNoContent())
@@ -190,7 +190,7 @@ class PlayerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 PLAYER_NOT_FOUND für einen unbekannten Spieler")
+        @DisplayName("returns 404 PLAYER_NOT_FOUND for an unknown player")
         void shouldReturnNotFound() throws Exception {
             doThrow(new PlayerNotFoundException(PLAYER_UUID)).when(playerService).deletePlayer(PLAYER_UUID);
 
@@ -205,7 +205,7 @@ class PlayerControllerTest {
     class CountPlayers {
 
         @Test
-        @DisplayName("liefert 200 mit der Gesamtanzahl")
+        @DisplayName("returns 200 with the total count")
         void shouldReturnCount() throws Exception {
             when(playerService.countPlayers()).thenReturn(5L);
 

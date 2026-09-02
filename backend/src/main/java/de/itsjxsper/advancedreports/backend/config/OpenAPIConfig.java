@@ -16,7 +16,7 @@ public class OpenAPIConfig {
                         .contact(new Contact()
                                 .name("ItsJxsper")
                                 .email("itsjxsper@outlook.de"))
-                        .title("WebBackend API")
+                        .title("AdvancedReports API")
                         .description("Swagger API for the AdvancedReports")
                         .version(System.getenv("version")));
     }

@@ -25,11 +25,13 @@ public interface CategoryRepository extends JpaRepository<CategoryEntity, Long> 
             """)
     List<Object[]> countReportsPerCategory();
 
+    // r.categoryEntity is by definition the same row as c - that was a self-join back onto the
+    // category's own table, with a condition running against a column pinned to true.
     @Query("""
             select distinct c
             from CategoryEntity c
             join c.reportsEntities r
-            where r.categoryEntity.active = true
+            where c.active = true
             """)
     List<CategoryEntity> findCategoriesWithActiveReports();
 }

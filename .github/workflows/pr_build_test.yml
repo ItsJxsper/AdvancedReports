@@ -1,0 +1,122 @@
+name: PR Build and Tests
+
+on:
+  pull_request:
+    branches: [ develop, main ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+  push:
+    branches: [ develop, main ]
+
+permissions:
+  contents: read
+  packages: read
+
+# A new push to the same PR (or branch) cancels the running job
+concurrency:
+  group: pr-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# GITHUB_ACTOR is set by GitHub Actions itself - only the token has to be set explicitly,
+# so that settings.gradle.kts and build.gradle.kts can authenticate against GitHub Packages
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  build-and-unit-test:
+    name: Build and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # proxy needs 21, every other module needs 25 - without a toolchain resolver
+      # Gradle cannot download either, so install both
+      - name: Set up JDK 21 and 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build all modules (without tests)
+        run: ./gradlew build -x test --stacktrace
+
+      - name: Unit tests (without Docker) + coverage
+        run: ./gradlew :backend:unitTest :backend:jacocoTestReport --stacktrace
+
+      # The @Disabled tests are a documented bug backlog, not leftover test debt.
+      # Without this step CI looks green with nobody keeping an eye on the number.
+      - name: Count quarantined tests
+        if: always()
+        run: |
+          COUNT=$(grep -rho '@Disabled' backend/src/test --include='*.java' | wc -l)
+          FILES=$(grep -rl '@Disabled' backend/src/test --include='*.java' | wc -l)
+          echo "### Quarantined tests :construction:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **$COUNT** \`@Disabled\` tests in **$FILES** files" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Each one documents a real bug. Affected files:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          grep -rl '@Disabled' backend/src/test --include='*.java' \
+            | sed 's|backend/src/test/java/de/itsjxsper/advancedreports/backend/||' \
+            | sed 's|^|- `|; s|$|`|' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: |
+            backend/build/reports/tests/
+            backend/build/test-results/
+            backend/build/reports/jacoco/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  integration-test:
+    name: Integration and E2E tests
+    needs: build-and-unit-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Set up JDK 21 and 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            25
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Check Docker daemon
+        run: docker info
+
+      - name: Integration and E2E tests (Testcontainers)
+        run: ./gradlew :backend:integrationTest --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: |
+            backend/build/reports/tests/
+            backend/build/test-results/
+          retention-days: 7
+          if-no-files-found: ignore

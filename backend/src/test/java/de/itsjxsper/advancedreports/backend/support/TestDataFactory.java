@@ -10,6 +10,7 @@ import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
 import de.itsjxsper.advancedreports.common.model.player.PlayerUpdateDTO;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUpdateDto;
 import de.itsjxsper.advancedreports.common.model.server.ServerDto;
@@ -47,13 +48,24 @@ public final class TestDataFactory {
         CategoryEntity category = new CategoryEntity();
         category.setName(name);
         category.setDisplayName(name.substring(0, 1).toUpperCase() + name.substring(1));
-        category.setDescription("Beschreibung für " + name);
+        category.setDescription("Description for " + name);
         category.setCooldownSec(60L);
         return category;
     }
 
+    /**
+     * {@code ServerEntity#serverUuid} is an assigned identifier — a Minecraft server registers under
+     * its own configured UUID and there is no {@code @GeneratedValue} to fall back on. Leaving it
+     * unset makes every {@code persist} fail with {@code IdentifierGenerationException}, so the
+     * factory hands out one itself.
+     */
     public static ServerEntity server() {
+        return server(UUID.randomUUID());
+    }
+
+    public static ServerEntity server(UUID serverUuid) {
         ServerEntity server = new ServerEntity();
+        server.setServerUuid(serverUuid);
         server.setIpAddress(loopback());
         server.setPort(25565);
         return server;
@@ -91,7 +103,7 @@ public final class TestDataFactory {
         report.setHandledBy(handledBy);
         report.setCategoryEntity(category);
         report.setServer(server);
-        report.setReason("Verdacht auf Fliegen");
+        report.setReason("Suspected of flying");
         report.setLocation("world:100:64:-200");
         report.setReportStatus(ReportStatus.PENDING);
         report.setHandlerNote(null);
@@ -105,11 +117,30 @@ public final class TestDataFactory {
     }
 
     public static CategoryDto categoryDto(String name) {
-        return new CategoryDto(null, name, "Anzeige " + name, "Beschreibung", 60L, true);
+        return new CategoryDto(null, name, "Display " + name, "Description", 60L, true);
     }
 
     public static ServerDto serverDto(UUID serverUuid) {
         return new ServerDto(serverUuid, loopback(), 25565);
+    }
+
+    public static ReportCreateDto reportCreateDto(UUID reporter,
+                                                  UUID reported,
+                                                  Long categoryId,
+                                                  UUID serverUuid,
+                                                  UUID handledBy) {
+        return new ReportCreateDto(
+                reporter,
+                reported,
+                categoryId,
+                "Suspected of flying",
+                serverUuid,
+                "world:100:64:-200",
+                ReportStatus.PENDING,
+                handledBy,
+                null,
+                null
+        );
     }
 
     public static ReportUpdateDto reportUpdateDto(UUID reporter,
@@ -121,7 +152,7 @@ public final class TestDataFactory {
                 reporter,
                 reported,
                 categoryId,
-                "Verdacht auf Fliegen",
+                "Suspected of flying",
                 serverUuid,
                 "world:100:64:-200",
                 ReportStatus.PENDING,
