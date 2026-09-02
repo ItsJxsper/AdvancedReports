@@ -64,20 +64,26 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lässt updatedAt beim Anlegen leer")
-        void shouldLeaveUpdatedAtNullOnInsert() {
+        @DisplayName("setzt updatedAt bereits beim Anlegen")
+        void shouldSetUpdatedAtOnInsert() {
             ReportsEntity saved = entityManager.persistAndFlush(
                     TestDataFactory.report(reporter, reported, handler, category, server));
             entityManager.clear();
 
-            assertThat(entityManager.find(ReportsEntity.class, saved.getId()).getUpdatedAt()).isNull();
+            ReportsEntity found = entityManager.find(ReportsEntity.class, saved.getId());
+
+            // @UpdateTimestamp schreibt den Wert schon beim Insert. Das frühere @PreUpdate ohne
+            // @PrePersist liess updatedAt bis zur ersten Änderung null - gegen eine Spalte, die
+            // nicht nullable ist.
+            assertThat(found.getUpdatedAt()).isNotNull();
         }
 
         @Test
-        @DisplayName("füllt updatedAt über @PreUpdate bei einer Änderung")
+        @DisplayName("schreibt updatedAt über @UpdateTimestamp bei einer Änderung fort")
         void shouldSetUpdatedAtOnUpdate() {
             ReportsEntity saved = entityManager.persistAndFlush(
                     TestDataFactory.report(reporter, reported, handler, category, server));
+            Instant insertedAt = saved.getUpdatedAt();
 
             saved.setReportStatus(ReportStatus.APPROVED);
             saved.setHandlerNote("Bestätigt");
@@ -86,7 +92,7 @@ class EntityLifecycleIT extends AbstractRepositoryIT {
 
             ReportsEntity found = entityManager.find(ReportsEntity.class, saved.getId());
 
-            assertThat(found.getUpdatedAt()).isNotNull();
+            assertThat(found.getUpdatedAt()).isNotNull().isAfterOrEqualTo(insertedAt);
             assertThat(found.getReportStatus()).isEqualTo(ReportStatus.APPROVED);
         }
 

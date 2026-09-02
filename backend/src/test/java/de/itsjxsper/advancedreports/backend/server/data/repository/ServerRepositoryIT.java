@@ -5,6 +5,7 @@ import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
 import de.itsjxsper.advancedreports.backend.server.data.entity.ServerEntity;
 import de.itsjxsper.advancedreports.backend.support.AbstractRepositoryIT;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
+import org.hibernate.id.IdentifierGenerationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -59,11 +60,26 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
     class Persisting {
 
         @Test
-        @DisplayName("vergibt die Server-UUID automatisch")
-        void shouldGenerateServerUuid() {
-            ServerEntity saved = entityManager.persistAndFlush(TestDataFactory.server());
+        @DisplayName("übernimmt die mitgegebene Server-UUID unverändert")
+        void shouldKeepAssignedServerUuid() {
+            UUID serverUuid = UUID.randomUUID();
 
-            assertThat(saved.getServerUuid()).isNotNull();
+            ServerEntity saved = entityManager.persistAndFlush(TestDataFactory.server(serverUuid));
+
+            // ServerEntity hat bewusst kein @GeneratedValue: der Minecraft-Server registriert sich
+            // unter seiner eigenen, konfigurierten UUID, die ServerDto#serverUUID auch @NotNull
+            // mitschickt. Ein Generator würde genau diese UUID beim Persistieren überschreiben.
+            assertThat(saved.getServerUuid()).isEqualTo(serverUuid);
+        }
+
+        @Test
+        @DisplayName("lehnt einen Server ohne UUID ab, weil der Identifier zugewiesen werden muss")
+        void shouldRejectServerWithoutUuid() {
+            ServerEntity server = TestDataFactory.server();
+            server.setServerUuid(null);
+
+            assertThatThrownBy(() -> entityManager.persistAndFlush(server))
+                    .isInstanceOf(IdentifierGenerationException.class);
         }
 
         @Test

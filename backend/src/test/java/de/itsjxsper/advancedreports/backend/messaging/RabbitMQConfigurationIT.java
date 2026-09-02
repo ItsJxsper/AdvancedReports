@@ -8,8 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -31,14 +31,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @DisplayName("RabbitMQ-Topologie")
 class RabbitMQConfigurationIT extends AbstractE2ETest {
-
-    private RabbitAdmin rabbitAdmin;
+    
+    @Autowired
+    private AmqpAdmin amqpAdmin;
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
     private Properties queueProperties(String queueName) {
-        return rabbitAdmin.getQueueProperties(queueName);
+        return amqpAdmin.getQueueProperties(queueName);
     }
 
     /**

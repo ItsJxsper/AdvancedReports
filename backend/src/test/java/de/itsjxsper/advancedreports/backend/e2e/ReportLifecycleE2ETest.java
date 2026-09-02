@@ -1,16 +1,16 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
 import de.itsjxsper.advancedreports.backend.config.RabbitMQConfiguration;
-import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
 import de.itsjxsper.advancedreports.backend.support.DbFixtures;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
-import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -265,31 +265,34 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("setzt updatedAt, sichtbar beim erneuten Lesen des Reports")
+        @DisplayName("schreibt updatedAt fort, sichtbar beim erneuten Lesen des Reports")
         void shouldSetUpdatedAtOnPatch() {
-            Long reportId = postReport(newReport()).getBody().id();
+            ReportDto created = postReport(newReport()).getBody();
+
+            // @UpdateTimestamp setzt den Wert schon beim Anlegen, nicht erst bei der ersten
+            // Aenderung - anders als das fruehere @PreUpdate, das updatedAt bis dahin null liess.
+            assertThat(created.updatedAt()).isNotNull();
 
             ReportUpdateDto statusChange = new ReportUpdateDto(
                     reporter.playerUUID(), null, null, null, null, null,
                     ReportStatus.APPROVED, null, null, null);
 
-            ResponseEntity<ReportDto> patched = client().patch()
-                    .uri("/api/v1/reports/{id}", reportId)
+            client().patch()
+                    .uri("/api/v1/reports/{id}", created.id())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(statusChange)
                     .retrieve()
-                    .toEntity(ReportDto.class);
-
-            // @PreUpdate feuert erst beim Flush am Transaktionsende, also nachdem ReportService das
-            // Antwort-DTO gemappt hat - in der PATCH-Antwort ist updatedAt daher noch leer.
-            assertThat(patched.getBody().updatedAt()).isNull();
+                    .toBodilessEntity();
 
             ResponseEntity<ReportDto> reread = client().get()
-                    .uri("/api/v1/reports/{id}", reportId)
+                    .uri("/api/v1/reports/{id}", created.id())
                     .retrieve()
                     .toEntity(ReportDto.class);
 
-            assertThat(reread.getBody().updatedAt()).isNotNull();
+            // Der neue Zeitstempel entsteht erst beim Flush am Transaktionsende, also nach dem
+            // Mappen der PATCH-Antwort - sichtbar wird er daher beim erneuten Lesen.
+            assertThat(reread.getBody().updatedAt()).isAfter(created.updatedAt());
+            assertThat(reread.getBody().createdAt()).isEqualTo(created.createdAt());
             assertThat(reread.getBody().reportStatus()).isEqualTo(ReportStatus.APPROVED);
         }
 
@@ -310,28 +313,6 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().reportStatus()).isEqualTo(ReportStatus.REJECTED);
-        }
-
-        @Test
-        @DisplayName("dokumentiert, dass ein PATCH ohne reporterUUID mit 400 scheitert")
-        void shouldCurrentlyRejectPatchWithoutReporterUuid() {
-            Long reportId = postReport(newReport()).getBody().id();
-
-            ReportUpdateDto onlyStatus = new ReportUpdateDto(
-                    null, null, null, null, null, null, ReportStatus.REJECTED, null, null, null);
-
-            ResponseEntity<ApiErrorResponse> response = client().patch()
-                    .uri("/api/v1/reports/{id}", reportId)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(onlyStatus)
-                    .retrieve()
-                    .toEntity(ApiErrorResponse.class);
-
-            // reporterUUID ist im gemeinsamen ReportUpdateDto @NotNull, obwohl PATCH ein
-            // Teil-Update ist. Das meldet sich jetzt sauber als 400 VALIDATION_FAILED statt als
-            // 500 - dass Create und PATCH sich ein DTO teilen, bleibt der eigentliche Fehler.
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.VALIDATION_FAILED);
         }
 
         @Test

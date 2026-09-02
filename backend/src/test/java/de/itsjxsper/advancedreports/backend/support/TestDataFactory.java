@@ -53,8 +53,19 @@ public final class TestDataFactory {
         return category;
     }
 
+    /**
+     * {@code ServerEntity#serverUuid} is an assigned identifier — a Minecraft server registers under
+     * its own configured UUID and there is no {@code @GeneratedValue} to fall back on. Leaving it
+     * unset makes every {@code persist} fail with {@code IdentifierGenerationException}, so the
+     * factory hands out one itself.
+     */
     public static ServerEntity server() {
+        return server(UUID.randomUUID());
+    }
+
+    public static ServerEntity server(UUID serverUuid) {
         ServerEntity server = new ServerEntity();
+        server.setServerUuid(serverUuid);
         server.setIpAddress(loopback());
         server.setPort(25565);
         return server;
