@@ -69,14 +69,14 @@ class GlobalExceptionHandlerTest {
                 Arguments.of(new RateLimitExceededException("player-1", 1_000_000L), 429, "RATE_LIMIT_EXCEEDED"),
                 Arguments.of(new MissingHeaderException("X-Server-UUID"), 400, "MISSING_HEADER"),
                 Arguments.of(new IllegalArgumentException("kaputt"), 400, "ILLEGAL_ARGUMENT"),
-                Arguments.of(new UnsupportedOperationException("nicht unterstützt"), 400, "UNSUPPORTED_OPERATION"),
+                Arguments.of(new UnsupportedOperationException("not supported"), 400, "UNSUPPORTED_OPERATION"),
                 Arguments.of(new IllegalStateException("unerwartet"), 500, "INTERNAL_SERVER_ERROR")
         );
     }
 
     @ParameterizedTest(name = "{0} -> {1} {2}")
     @MethodSource("exceptionMappings")
-    @DisplayName("bildet jede Domain-Exception auf Status und ApiErrorCode ab")
+    @DisplayName("maps every domain exception to a status and an ApiErrorCode")
     void shouldMapExceptionToStatusAndCode(RuntimeException exception, int expectedStatus, String expectedCode)
             throws Exception {
         when(categoryService.getCategory(1L)).thenThrow(exception);
@@ -88,7 +88,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("gibt bei einer Domain-Exception die Original-Meldung weiter")
+    @DisplayName("passes the original message through for a domain exception")
     void shouldPassThroughDomainMessage() throws Exception {
         when(categoryService.getCategory(1L)).thenThrow(new CategoryNotFoundException(1L));
 
@@ -97,7 +97,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("verschweigt bei einem unerwarteten Fehler die interne Meldung")
+    @DisplayName("withholds the internal message on an unexpected error")
     void shouldHideInternalMessage() throws Exception {
         when(categoryService.getCategory(1L))
                 .thenThrow(new IllegalStateException("Verbindung zu Postgres verloren"));
@@ -110,7 +110,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("liefert genau die drei Felder status, code und message")
+    @DisplayName("returns exactly the three fields status, code and message")
     void shouldReturnExactlyThreeFields() throws Exception {
         when(categoryService.getCategory(1L)).thenThrow(new CategoryNotFoundException(1L));
 

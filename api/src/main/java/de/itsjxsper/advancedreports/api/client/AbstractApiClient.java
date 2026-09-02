@@ -131,24 +131,40 @@ public abstract class AbstractApiClient {
     }
 
     // ---------------------------------------------------------------------
-    // Multipart Upload
+    // Raw PUT to an absolute URL (e.g. presigned S3 upload URLs)
     // ---------------------------------------------------------------------
 
-    protected <R> CompletableFuture<R> uploadAsync(String path, String partName, String filename,
-                                                   MediaType mediaType, byte[] content,
-                                                   Class<R> responseType, Map<String, String> headers) {
-        RequestBody fileBody = RequestBody.create(mediaType, content);
-        MultipartBody multipartBody = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart(partName, filename, fileBody)
-                .build();
+    /**
+     * Sends a raw body to an absolute URL outside the backend – used for presigned S3 upload URLs.
+     * Deliberately does not prefix {@code baseUrl}, does not add any backend headers, and does not try
+     * to parse an {@code ApiErrorResponse} from the body, because S3 answers with XML rather than the
+     * backend error contract.
+     * <p>
+     * {@code headers} are the signed headers the presigning returned; OkHttp manages {@code Content-Length}
+     * itself, so passing it through again is harmless.
+     */
+    protected CompletableFuture<Void> putAbsoluteAsync(String url, byte[] content, Map<String, String> headers) {
+        Request.Builder builder = new Request.Builder().url(url);
+        headers.forEach(builder::header);
+        Request request = builder.put(RequestBody.create(null, content)).build();
 
-        Request request = requestBuilder(path, headers).post(multipartBody).build();
-        return executeAsync(request, responseType);
+        return CompletableFuture.supplyAsync(() -> {
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    ResponseBody body = response.body();
+                    String bodyContent = body != null ? body.string() : null;
+                    throw new ApiException(response.code(), null, "Upload to " + url + " failed"
+                            + (bodyContent != null && !bodyContent.isBlank() ? ": " + bodyContent : ""));
+                }
+                return null;
+            } catch (IOException e) {
+                throw new ApiException("Network error during upload to " + url, e);
+            }
+        }, executor);
     }
 
     // ---------------------------------------------------------------------
-    // Raw Download (z. B. Screenshot-Bytes)
+    // Raw download (e.g. screenshot bytes)
     // ---------------------------------------------------------------------
 
     protected CompletableFuture<byte[]> downloadAsync(String path, Map<String, String> headers) {

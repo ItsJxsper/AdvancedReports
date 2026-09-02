@@ -5,8 +5,12 @@ pluginManagement {
         maven("https://maven.pkg.github.com/ItsJxsper/advancedreports") {
             name = "githubPackages"
             credentials {
-                username = providers.gradleProperty("gpr.user").orNull ?: System.getenv("actor")
-                password = providers.gradleProperty("gpr.token").orNull ?: System.getenv("token")
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .orNull
+                password = providers.gradleProperty("gpr.token")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .orNull
             }
         }
     }

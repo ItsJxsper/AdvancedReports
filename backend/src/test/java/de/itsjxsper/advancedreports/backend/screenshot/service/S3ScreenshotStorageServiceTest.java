@@ -1,7 +1,6 @@
 package de.itsjxsper.advancedreports.backend.screenshot.service;
 
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotStorageException;
-import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDownloadDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,14 +12,23 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
-import software.amazon.awssdk.core.ResponseBytes;
-import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.http.SdkHttpMethod;
+import software.amazon.awssdk.http.SdkHttpRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,178 +41,270 @@ import static org.mockito.Mockito.*;
 class S3ScreenshotStorageServiceTest {
 
     private static final String BUCKET = "advancedreports";
+    private static final Instant EXPIRES_AT = Instant.parse("2026-01-01T00:15:00Z");
 
     @Mock
     private ObjectProvider<S3Client> s3ClientProvider;
 
     @Mock
+    private ObjectProvider<S3Presigner> s3PresignerProvider;
+
+    @Mock
     private S3Client s3Client;
+
+    @Mock
+    private S3Presigner s3Presigner;
 
     private S3ScreenshotStorageService service;
 
+    private static SdkHttpRequest signedRequest(SdkHttpMethod method, String path) {
+        return SdkHttpRequest.builder()
+                .method(method)
+                .protocol("https")
+                .host(BUCKET + ".s3.eu-central-1.amazonaws.com")
+                .encodedPath(path)
+                .appendRawQueryParameter("X-Amz-Signature", "abc123")
+                .build();
+    }
+
     @BeforeEach
     void setUp() {
-        service = new S3ScreenshotStorageService(s3ClientProvider);
+        service = new S3ScreenshotStorageService(s3ClientProvider, s3PresignerProvider);
         when(s3ClientProvider.getIfAvailable()).thenReturn(s3Client);
+        when(s3PresignerProvider.getIfAvailable()).thenReturn(s3Presigner);
         configure(BUCKET, "eu-central-1", "");
     }
 
     /**
-     * The bucket, region and endpoint are {@code @Value}-injected fields, so outside of a Spring
-     * context they have to be set reflectively.
+     * The bucket, region, endpoint and expiry durations are {@code @Value}-injected fields, so outside
+     * of a Spring context they have to be set reflectively.
      */
     private void configure(String bucket, String region, String endpointUrl) {
         ReflectionTestUtils.setField(service, "bucket", bucket);
         ReflectionTestUtils.setField(service, "region", region);
         ReflectionTestUtils.setField(service, "endpointUrl", endpointUrl);
+        ReflectionTestUtils.setField(service, "uploadExpiry", Duration.ofMinutes(15));
+        ReflectionTestUtils.setField(service, "downloadExpiry", Duration.ofMinutes(5));
     }
 
     @Nested
-    @DisplayName("upload")
-    class Upload {
+    @DisplayName("presignUpload")
+    class PresignUpload {
 
-        @Test
-        @DisplayName("legt das Objekt unter einem datierten, eindeutigen Key ab")
-        void shouldUploadUnderDatedKey() {
-            MockMultipartFile file =
-                    new MockMultipartFile("file", "screenshot.png", "image/png", "png-bytes".getBytes());
-
-            var stored = service.upload(file);
-
-            ArgumentCaptor<PutObjectRequest> request = ArgumentCaptor.forClass(PutObjectRequest.class);
-            verify(s3Client).putObject(request.capture(), any(RequestBody.class));
-
-            assertThat(request.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(request.getValue().contentType()).isEqualTo("image/png");
-            assertThat(request.getValue().key())
-                    .matches("screenshots/" + LocalDate.now() + "/[0-9a-f-]{36}-screenshot\\.png");
-
-            assertThat(stored.objectKey()).isEqualTo(request.getValue().key());
-            assertThat(stored.originalFilename()).isEqualTo("screenshot.png");
-            assertThat(stored.contentType()).isEqualTo("image/png");
-            assertThat(stored.fileSizeBytes()).isEqualTo("png-bytes".getBytes().length);
+        private PresignedPutObjectRequest presignedPut() {
+            return PresignedPutObjectRequest.builder()
+                    .expiration(EXPIRES_AT)
+                    .isBrowserExecutable(false)
+                    .signedHeaders(Map.of(
+                            "content-type", List.of("image/png"),
+                            "content-length", List.of("1024")))
+                    .httpRequest(signedRequest(SdkHttpMethod.PUT, "/screenshots/2026-01-01/abc-screenshot.png"))
+                    .build();
         }
 
         @Test
-        @DisplayName("entschärft Pfadanteile und Sonderzeichen im Dateinamen")
+        @DisplayName("signs a PUT to a dated, unique key")
+        void shouldPresignPutUnderDatedKey() {
+            when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
+
+            var presigned = service.presignUpload("screenshot.png", "image/png", 1024L);
+
+            ArgumentCaptor<PutObjectPresignRequest> request =
+                    ArgumentCaptor.forClass(PutObjectPresignRequest.class);
+            verify(s3Presigner).presignPutObject(request.capture());
+
+            PutObjectRequest putObjectRequest = request.getValue().putObjectRequest();
+            assertThat(putObjectRequest.bucket()).isEqualTo(BUCKET);
+            assertThat(putObjectRequest.contentType()).isEqualTo("image/png");
+            assertThat(putObjectRequest.key())
+                    .matches("screenshots/" + LocalDate.now() + "/[0-9a-f-]{36}-screenshot\\.png");
+            assertThat(request.getValue().signatureDuration()).isEqualTo(Duration.ofMinutes(15));
+
+            assertThat(presigned.objectKey()).isEqualTo(putObjectRequest.key());
+            assertThat(presigned.originalFilename()).isEqualTo("screenshot.png");
+            assertThat(presigned.contentType()).isEqualTo("image/png");
+            assertThat(presigned.uploadUrl()).contains("X-Amz-Signature=abc123");
+            assertThat(presigned.expiresAt()).isEqualTo(EXPIRES_AT);
+            assertThat(presigned.storageUri())
+                    .isEqualTo("https://" + BUCKET + ".s3.eu-central-1.amazonaws.com/" + presigned.objectKey());
+        }
+
+        @Test
+        @DisplayName("signs the file size as Content-Length so S3 rejects differing uploads")
+        void shouldSignContentLength() {
+            when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
+
+            service.presignUpload("screenshot.png", "image/png", 1024L);
+
+            ArgumentCaptor<PutObjectPresignRequest> request =
+                    ArgumentCaptor.forClass(PutObjectPresignRequest.class);
+            verify(s3Presigner).presignPutObject(request.capture());
+
+            assertThat(request.getValue().putObjectRequest().contentLength()).isEqualTo(1024L);
+        }
+
+        @Test
+        @DisplayName("returns the signed headers the client has to send")
+        void shouldReturnRequiredHeaders() {
+            when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
+
+            var presigned = service.presignUpload("screenshot.png", "image/png", 1024L);
+
+            assertThat(presigned.requiredHeaders())
+                    .containsEntry("content-type", "image/png")
+                    .containsEntry("content-length", "1024");
+        }
+
+        @Test
+        @DisplayName("sanitises path segments and special characters in the file name")
         void shouldSanitizeFilename() {
-            MockMultipartFile file = new MockMultipartFile(
-                    "file", "../Böse Datei!.PNG", "image/png", "x".getBytes());
+            when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
-            var stored = service.upload(file);
+            var presigned = service.presignUpload("../Böse Datei!.PNG", "image/png", 1L);
 
-            // Umlaute, Leerzeichen und "!" werden zu "_", der Name landet komplett in Kleinschreibung,
-            // und alle Pfadtrenner sind verschwunden - der Dateiname kann also nicht mehr aus dem
-            // "screenshots/<datum>/"-Präfix ausbrechen.
-            assertThat(stored.objectKey())
-                    .isEqualTo("screenshots/" + LocalDate.now() + "/"
-                            + stored.objectKey().split("/")[2].substring(0, 36) + "-.._b_se_datei_.png");
-            assertThat(stored.objectKey()).matches("screenshots/[^/]+/[0-9a-f-]{36}-[a-z0-9._-]+");
-            assertThat(stored.originalFilename())
-                    .as("Der Originalname bleibt für die Anzeige unverändert erhalten")
+            // Umlauts, spaces and "!" become "_", the name ends up entirely lower case, and every
+            // path separator is gone - so the file name can no longer break out of the
+            // "screenshots/<date>/" prefix.
+            assertThat(presigned.objectKey()).matches("screenshots/[^/]+/[0-9a-f-]{36}-[a-z0-9._-]+");
+            assertThat(presigned.objectKey()).endsWith("-.._b_se_datei_.png");
+            assertThat(presigned.originalFilename())
+                    .as("The original name is kept unchanged for display")
                     .isEqualTo("../Böse Datei!.PNG");
         }
 
         @Test
-        @DisplayName("leitet den Content-Type aus dem Dateinamen ab, wenn keiner mitgeschickt wurde")
+        @DisplayName("derives the content type from the file name when none was sent")
         void shouldGuessContentTypeFromFilename() {
-            MockMultipartFile file =
-                    new MockMultipartFile("file", "screenshot.png", null, "x".getBytes());
+            when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
-            assertThat(service.upload(file).contentType()).isEqualTo("image/png");
+            assertThat(service.presignUpload("screenshot.png", null, 1L).contentType()).isEqualTo("image/png");
         }
 
         @Test
-        @DisplayName("fällt auf application/octet-stream zurück, wenn der Typ unbekannt ist")
+        @DisplayName("falls back to application/octet-stream when the type is unknown")
         void shouldFallBackToOctetStream() {
-            MockMultipartFile file =
-                    new MockMultipartFile("file", "screenshot.unknownext", null, "x".getBytes());
+            when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
-            assertThat(service.upload(file).contentType()).isEqualTo("application/octet-stream");
+            assertThat(service.presignUpload("screenshot.unknownext", null, 1L).contentType())
+                    .isEqualTo("application/octet-stream");
         }
 
         @Test
-        @DisplayName("wirft IllegalArgumentException bei einer leeren Datei")
-        void shouldRejectEmptyFile() {
-            MockMultipartFile empty = new MockMultipartFile("file", "screenshot.png", "image/png", new byte[0]);
-
-            assertThatThrownBy(() -> service.upload(empty))
+        @DisplayName("throws IllegalArgumentException for a file size of zero or less")
+        void shouldRejectNonPositiveFileSize() {
+            assertThatThrownBy(() -> service.presignUpload("screenshot.png", "image/png", 0L))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("must not be empty");
+                    .hasMessageContaining("greater than zero");
 
-            verifyNoInteractions(s3Client);
-        }
-
-        @Test
-        @DisplayName("wirft IllegalArgumentException, wenn keine Datei übergeben wurde")
-        void shouldRejectNullFile() {
-            assertThatThrownBy(() -> service.upload(null))
-                    .isInstanceOf(IllegalArgumentException.class);
-        }
-
-        @Test
-        @DisplayName("verpackt eine S3Exception in eine ScreenshotStorageException")
-        void shouldWrapS3Exception() {
-            MockMultipartFile file =
-                    new MockMultipartFile("file", "screenshot.png", "image/png", "x".getBytes());
-            when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                    .thenThrow(S3Exception.builder().message("access denied").build());
-
-            assertThatThrownBy(() -> service.upload(file))
-                    .isInstanceOf(ScreenshotStorageException.class)
-                    .hasMessageContaining("Failed to upload screenshot to S3");
+            verifyNoInteractions(s3Presigner);
         }
     }
 
     @Nested
-    @DisplayName("download")
-    class Download {
+    @DisplayName("presignDownload")
+    class PresignDownload {
 
-        private ResponseBytes<GetObjectResponse> responseBytes(String contentType, byte[] content) {
-            return ResponseBytes.fromByteArray(
-                    GetObjectResponse.builder().contentType(contentType).build(), content);
+        private PresignedGetObjectRequest presignedGet() {
+            return PresignedGetObjectRequest.builder()
+                    .expiration(EXPIRES_AT)
+                    .isBrowserExecutable(true)
+                    .signedHeaders(Map.of("host", List.of(BUCKET + ".s3.eu-central-1.amazonaws.com")))
+                    .httpRequest(signedRequest(SdkHttpMethod.GET, "/screenshots/2026-01-01/abc-screenshot.png"))
+                    .build();
         }
 
         @Test
-        @DisplayName("liefert Dateiname, Content-Type und Inhalt zurück")
-        void shouldDownloadObject() {
-            byte[] content = "png-bytes".getBytes();
-            when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
-                    .thenReturn(responseBytes("image/png", content));
+        @DisplayName("signs a GET including file name and content type")
+        void shouldPresignGetWithFilename() {
+            when(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(presignedGet());
 
-            ScreenshotDownloadDto result = service.download("screenshots/2026-01-01/abc-screenshot.png");
+            var presigned = service.presignDownload("a/b.png", "screenshot.png", "image/png");
 
-            assertThat(result.filename()).isEqualTo("abc-screenshot.png");
-            assertThat(result.contentType()).isEqualTo("image/png");
-            assertThat(result.content()).isEqualTo(content);
+            ArgumentCaptor<GetObjectPresignRequest> request =
+                    ArgumentCaptor.forClass(GetObjectPresignRequest.class);
+            verify(s3Presigner).presignGetObject(request.capture());
+
+            GetObjectRequest getObjectRequest = request.getValue().getObjectRequest();
+            assertThat(getObjectRequest.bucket()).isEqualTo(BUCKET);
+            assertThat(getObjectRequest.key()).isEqualTo("a/b.png");
+            assertThat(getObjectRequest.responseContentType()).isEqualTo("image/png");
+            assertThat(getObjectRequest.responseContentDisposition()).contains("screenshot.png");
+            assertThat(request.getValue().signatureDuration()).isEqualTo(Duration.ofMinutes(5));
+
+            assertThat(presigned.downloadUrl()).contains("X-Amz-Signature=abc123");
+            assertThat(presigned.originalFilename()).isEqualTo("screenshot.png");
+            assertThat(presigned.contentType()).isEqualTo("image/png");
+            assertThat(presigned.expiresAt()).isEqualTo(EXPIRES_AT);
         }
 
         @Test
-        @DisplayName("fällt auf application/octet-stream zurück, wenn S3 keinen Content-Type liefert")
-        void shouldFallBackToOctetStream() {
-            when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
-                    .thenReturn(responseBytes(null, "x".getBytes()));
-
-            assertThat(service.download("a/b.png").contentType()).isEqualTo("application/octet-stream");
-        }
-
-        @Test
-        @DisplayName("wirft IllegalArgumentException bei leerem Object-Key")
+        @DisplayName("throws IllegalArgumentException for an empty object key")
         void shouldRejectBlankObjectKey() {
-            assertThatThrownBy(() -> service.download("  "))
+            assertThatThrownBy(() -> service.presignDownload("  ", "screenshot.png", "image/png"))
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("must not be blank");
+
+            verifyNoInteractions(s3Presigner);
+        }
+    }
+
+    @Nested
+    @DisplayName("headObject")
+    class HeadObject {
+
+        @Test
+        @DisplayName("returns the size and content type of the stored object")
+        void shouldReturnObjectMetadata() {
+            when(s3Client.headObject(any(HeadObjectRequest.class)))
+                    .thenReturn(HeadObjectResponse.builder()
+                            .contentLength(2048L)
+                            .contentType("image/png")
+                            .build());
+
+            Optional<S3ScreenshotStorageService.ObjectMetadata> result = service.headObject("a/b.png");
+
+            assertThat(result).isPresent();
+            assertThat(result.get().contentLength()).isEqualTo(2048L);
+            assertThat(result.get().contentType()).isEqualTo("image/png");
         }
 
         @Test
-        @DisplayName("verpackt eine S3Exception in eine ScreenshotStorageException")
-        void shouldWrapS3Exception() {
-            when(s3Client.getObjectAsBytes(any(GetObjectRequest.class)))
-                    .thenThrow(S3Exception.builder().message("no such key").build());
+        @DisplayName("returns an empty Optional when the object does not exist")
+        void shouldReturnEmptyForMissingObject() {
+            when(s3Client.headObject(any(HeadObjectRequest.class)))
+                    .thenThrow(NoSuchKeyException.builder().message("no such key").build());
 
-            assertThatThrownBy(() -> service.download("a/b.png"))
+            assertThat(service.headObject("a/b.png")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("returns an empty Optional when S3 answers with 404")
+        void shouldReturnEmptyForNotFoundStatus() {
+            when(s3Client.headObject(any(HeadObjectRequest.class)))
+                    .thenThrow(S3Exception.builder().statusCode(404).message("not found").build());
+
+            assertThat(service.headObject("a/b.png")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("wraps every other S3Exception in a ScreenshotStorageException")
+        void shouldWrapS3Exception() {
+            when(s3Client.headObject(any(HeadObjectRequest.class)))
+                    .thenThrow(S3Exception.builder().statusCode(403).message("access denied").build());
+
+            assertThatThrownBy(() -> service.headObject("a/b.png"))
                     .isInstanceOf(ScreenshotStorageException.class)
-                    .hasMessageContaining("Failed to download screenshot from S3");
+                    .hasMessageContaining("Failed to read screenshot metadata from S3");
+        }
+
+        @Test
+        @DisplayName("throws IllegalArgumentException for an empty object key")
+        void shouldRejectBlankObjectKey() {
+            assertThatThrownBy(() -> service.headObject("  "))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("must not be blank");
+
+            verifyNoInteractions(s3Client);
         }
     }
 
@@ -213,7 +313,7 @@ class S3ScreenshotStorageServiceTest {
     class Delete {
 
         @Test
-        @DisplayName("löscht das Objekt aus dem Bucket")
+        @DisplayName("deletes the object from the bucket")
         void shouldDeleteObject() {
             service.delete("screenshots/2026-01-01/abc-screenshot.png");
 
@@ -226,7 +326,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("tut nichts, wenn kein Object-Key übergeben wurde")
+        @DisplayName("does nothing when no object key was passed")
         void shouldIgnoreBlankObjectKey() {
             service.delete("  ");
 
@@ -234,7 +334,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("verpackt eine S3Exception in eine ScreenshotStorageException")
+        @DisplayName("wraps an S3Exception in a ScreenshotStorageException")
         void shouldWrapS3Exception() {
             when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
                     .thenThrow(S3Exception.builder().message("boom").build());
@@ -250,7 +350,7 @@ class S3ScreenshotStorageServiceTest {
     class BuildStorageUri {
 
         @Test
-        @DisplayName("nutzt die konfigurierte Endpoint-URL und entfernt den Slash am Ende")
+        @DisplayName("uses the configured endpoint URL and strips the trailing slash")
         void shouldUseEndpointUrl() {
             configure(BUCKET, "eu-central-1", "http://localhost:9000/");
 
@@ -259,7 +359,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("baut ohne Endpoint eine regionale AWS-URL")
+        @DisplayName("builds a regional AWS URL when there is no endpoint")
         void shouldUseRegionalAwsUrl() {
             configure(BUCKET, "eu-central-1", "");
 
@@ -268,7 +368,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("fällt ohne Endpoint und ohne Region auf ein s3://-Schema zurück")
+        @DisplayName("falls back to an s3:// scheme without an endpoint and without a region")
         void shouldFallBackToS3Scheme() {
             configure(BUCKET, "", "");
 
@@ -277,11 +377,11 @@ class S3ScreenshotStorageServiceTest {
     }
 
     @Nested
-    @DisplayName("Konfigurationsfehler")
+    @DisplayName("Configuration errors")
     class ConfigurationErrors {
 
         @Test
-        @DisplayName("wirft ScreenshotStorageException, wenn kein S3Client verfügbar ist")
+        @DisplayName("throws ScreenshotStorageException when no S3Client is available")
         void shouldFailWithoutS3Client() {
             when(s3ClientProvider.getIfAvailable()).thenReturn(null);
 
@@ -291,7 +391,17 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotStorageException, wenn kein Bucket konfiguriert ist")
+        @DisplayName("throws ScreenshotStorageException when no S3Presigner is available")
+        void shouldFailWithoutS3Presigner() {
+            when(s3PresignerProvider.getIfAvailable()).thenReturn(null);
+
+            assertThatThrownBy(() -> service.presignUpload("screenshot.png", "image/png", 1L))
+                    .isInstanceOf(ScreenshotStorageException.class)
+                    .hasMessageContaining("AWS S3 is not configured");
+        }
+
+        @Test
+        @DisplayName("throws ScreenshotStorageException when no bucket is configured")
         void shouldFailWithoutBucket() {
             configure("", "eu-central-1", "");
 

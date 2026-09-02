@@ -87,7 +87,12 @@ public class DiscordPlayerController {
             @PathVariable Long discordPlayerId,
             @Valid @RequestBody DiscordPlayerDto discordPlayerDto) {
         log.debug("Updating Discord Player with id={}", discordPlayerId);
-        DiscordPlayerDto updatedPlayer = this.discordPlayerService.updateDiscordPlayer(discordPlayerDto);
+        // The path is authoritative: discordPlayerId used to be ignored and the target resolved
+        // from discordPlayerDto.id() alone - so path and body could drift apart.
+        DiscordPlayerDto target = new DiscordPlayerDto(
+                discordPlayerId, discordPlayerDto.playerEntityPlayerUUID(), discordPlayerDto.discordUserId());
+
+        DiscordPlayerDto updatedPlayer = this.discordPlayerService.updateDiscordPlayer(target);
         return ResponseEntity.ok(updatedPlayer);
     }
 

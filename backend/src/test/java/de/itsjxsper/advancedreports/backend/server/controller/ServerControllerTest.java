@@ -4,7 +4,6 @@ import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundExce
 import de.itsjxsper.advancedreports.backend.server.service.ServerService;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.model.server.ServerDto;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,39 +43,19 @@ class ServerControllerTest {
     class CreateServer {
 
         @Test
-        @Disabled("BUG: ServerController#createServer (server/controller/ServerController.java:24) "
-                + "deklariert den Parameter als 'ServerDto serverDto' ohne @RequestBody. Spring MVC "
-                + "behandelt ihn deshalb als Model-Attribute und bindet ihn aus Query-Parametern statt "
-                + "aus dem JSON-Body - ein gesendeter Body wird komplett ignoriert und der Service "
-                + "bekommt ein DTO mit lauter null-Feldern. Dasselbe gilt fuer #updateServer "
-                + "(Zeile 66). Zusaetzlich fehlt an POST /servers das @RateLimited, das jeder andere "
-                + "Endpunkt dieses Controllers traegt.")
-        @DisplayName("übernimmt den JSON-Body und liefert 200 mit dem registrierten Server")
+        @DisplayName("accepts the JSON body and returns 201 with the registered server")
         void shouldCreateServerFromJsonBody() throws Exception {
             when(serverService.createServer(any())).thenReturn(serverDto);
 
             mockMvc.perform(post("/api/v1/servers")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(serverDto)))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.serverUUID").value(SERVER_UUID.toString()));
 
             verify(serverService).createServer(serverDto);
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass der JSON-Body aktuell verworfen wird")
-        void shouldCurrentlyIgnoreJsonBody() throws Exception {
-            when(serverService.createServer(any())).thenReturn(serverDto);
-
-            mockMvc.perform(post("/api/v1/servers")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(serverDto)))
-                    .andExpect(status().isOk());
-
-            // Ohne @RequestBody kommt ein leeres DTO an, nicht das gesendete.
-            verify(serverService).createServer(new ServerDto(null, null, null));
-        }
     }
 
     @Nested
@@ -84,7 +63,7 @@ class ServerControllerTest {
     class GetServer {
 
         @Test
-        @DisplayName("liefert 200 mit dem Server")
+        @DisplayName("returns 200 with the server")
         void shouldReturnServer() throws Exception {
             when(serverService.getServerByUUID(SERVER_UUID)).thenReturn(serverDto);
 
@@ -95,7 +74,7 @@ class ServerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SERVER_NOT_FOUND für eine unbekannte UUID")
+        @DisplayName("returns 404 SERVER_NOT_FOUND for an unknown UUID")
         void shouldReturnNotFound() throws Exception {
             when(serverService.getServerByUUID(SERVER_UUID))
                     .thenThrow(new ServerNotFoundException(SERVER_UUID));
@@ -113,7 +92,7 @@ class ServerControllerTest {
     class GetAllServers {
 
         @Test
-        @DisplayName("liefert 200 mit einer paginierten Liste")
+        @DisplayName("returns 200 with a paginated list")
         void shouldReturnPagedServers() throws Exception {
             when(serverService.getAllServers(0, 10)).thenReturn(new PageImpl<>(List.of(serverDto)));
 
@@ -123,7 +102,7 @@ class ServerControllerTest {
         }
 
         @Test
-        @DisplayName("nutzt page=0 und size=10 als Voreinstellung")
+        @DisplayName("defaults to page=0 and size=10")
         void shouldUseDefaultPaging() throws Exception {
             when(serverService.getAllServers(0, 10)).thenReturn(new PageImpl<>(List.of()));
 
@@ -133,7 +112,7 @@ class ServerControllerTest {
         }
 
         @Test
-        @DisplayName("übernimmt page und size aus den Query-Parametern")
+        @DisplayName("takes page and size from the query parameters")
         void shouldHonourPagingParameters() throws Exception {
             when(serverService.getAllServers(3, 7)).thenReturn(new PageImpl<>(List.of()));
 
@@ -149,7 +128,7 @@ class ServerControllerTest {
     class DeleteServer {
 
         @Test
-        @DisplayName("liefert 204 ohne Body")
+        @DisplayName("returns 204 with no body")
         void shouldDeleteServer() throws Exception {
             mockMvc.perform(delete("/api/v1/servers/{uuid}", SERVER_UUID))
                     .andExpect(status().isNoContent())
@@ -159,7 +138,7 @@ class ServerControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SERVER_NOT_FOUND, wenn der Service wirft")
+        @DisplayName("returns 404 SERVER_NOT_FOUND when the service throws")
         void shouldReturnNotFound() throws Exception {
             doThrow(new ServerNotFoundException(SERVER_UUID)).when(serverService).deleteServer(SERVER_UUID);
 
@@ -170,11 +149,11 @@ class ServerControllerTest {
     }
 
     @Nested
-    @DisplayName("Zählendpunkte")
+    @DisplayName("Count endpoints")
     class CountEndpoints {
 
         @Test
-        @DisplayName("GET /count liefert 200 mit der Anzahl registrierter Server")
+        @DisplayName("GET /count returns 200 with the number of registered servers")
         void shouldReturnServerCount() throws Exception {
             when(serverService.countServers()).thenReturn(3L);
 
@@ -184,7 +163,7 @@ class ServerControllerTest {
         }
 
         @Test
-        @DisplayName("GET /{serverUUID}/reports/count liefert 200 mit der Reportanzahl des Servers")
+        @DisplayName("GET /{serverUUID}/reports/count returns 200 with the server's report count")
         void shouldReturnReportCountForServer() throws Exception {
             when(serverService.countReportsForServer(SERVER_UUID)).thenReturn(11L);
 

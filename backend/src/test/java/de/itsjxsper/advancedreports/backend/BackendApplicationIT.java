@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 class BackendApplicationIT extends AbstractE2ETest {
 
     @Test
-    @DisplayName("startet den vollständigen Anwendungskontext")
+    @DisplayName("starts the full application context")
     void contextLoads() {
         // Fails if any bean cannot be created. Notably RedisConfig#proxyManager opens a Lettuce
         // connection eagerly, so this test only passes with a reachable Redis.

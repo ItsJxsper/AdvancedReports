@@ -3,7 +3,16 @@ paper-api = "26.2.build.+"
 velocity-api = "3.5.0-SNAPSHOT"
 minecraft = "26.2"
 
-common = "0.00.5"
+# Java toolchains. Every module builds on 25; proxy pins 21 because Velocity does.
+# Named "proxy-java" rather than "java-proxy" so the generated accessors stay distinct
+# (libs.versions.java / libs.versions.proxy.java) instead of nesting under the same prefix.
+java = "25"
+proxy-java = "21"
+
+# The version of the published de.itsjxsper:common artifact, for consumers outside this build.
+# Modules inside the monorepo use project(":common") instead, so this pin does not govern them -
+# keep it in step with common/gradle.properties when common is released.
+common = "0.0.5"
 
 lombok = "1.18.46"
 jetbrains-annotations = "26.1.0"
@@ -11,6 +20,16 @@ jackson = "2.22.1"
 jakarta-validation-api = "3.1.1"
 gson = "2.14.0"
 okhttp = "4.12.0"
+
+spring-boot = "4.1.0"
+spring-dependency-management = "1.1.7"
+springdoc = "3.0.2"
+aws-sdk = "2.42.35"
+mapstruct = "1.6.3"
+bucket4j = "8.10.1"
+# Matches what the Gradle 9.6.1 jacoco plugin resolves by default, so pinning it changes nothing
+# today and keeps a future Gradle upgrade from moving the coverage tool silently.
+jacoco = "0.8.14"
 
 shadow = "9.5.1"
 run-task = "3.0.2"
@@ -29,9 +48,56 @@ common = { module = "de.itsjxsper:common", version.ref = "common" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 
+springdoc-openapi-starter-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+aws-sdk-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws-sdk" }
+mapstruct = { module = "org.mapstruct:mapstruct", version.ref = "mapstruct" }
+mapstruct-processor = { module = "org.mapstruct:mapstruct-processor", version.ref = "mapstruct" }
+bucket4j-redis = { module = "com.bucket4j:bucket4j-redis", version.ref = "bucket4j" }
+
+# Deliberately versionless: io.spring.dependency-management applies the Spring Boot BOM, which is the
+# single source of truth for these versions. Declaring a version here would duplicate the BOM and
+# drift from it on the next Boot upgrade. Removing that plugin makes all of these fail to resolve.
+spring-boot-starter-amqp = { module = "org.springframework.boot:spring-boot-starter-amqp" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-webmvc = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator" }
+spring-boot-docker-compose = { module = "org.springframework.boot:spring-boot-docker-compose" }
+spring-boot-starter-amqp-test = { module = "org.springframework.boot:spring-boot-starter-amqp-test" }
+spring-boot-starter-data-jpa-test = { module = "org.springframework.boot:spring-boot-starter-data-jpa-test" }
+spring-boot-starter-webmvc-test = { module = "org.springframework.boot:spring-boot-starter-webmvc-test" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers" }
+postgresql = { module = "org.postgresql:postgresql" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter" }
+testcontainers-rabbitmq = { module = "org.testcontainers:testcontainers-rabbitmq" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+testcontainers-minio = { module = "org.testcontainers:testcontainers-minio" }
+testcontainers-redis = { module = "com.redis:testcontainers-redis" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+[bundles]
+# The container set backing every *IT and *E2ETest, and the Boot test slices that drive them.
+testcontainers = [
+    "testcontainers-junit-jupiter",
+    "testcontainers-rabbitmq",
+    "testcontainers-postgresql",
+    "testcontainers-minio",
+    "testcontainers-redis",
+]
+spring-boot-test = [
+    "spring-boot-starter-amqp-test",
+    "spring-boot-starter-data-jpa-test",
+    "spring-boot-starter-webmvc-test",
+    "spring-boot-testcontainers",
+]
+
 [plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 run-velocity = { id = "xyz.jpenilla.run-velocity", version.ref = "run-task" }
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-task" }
 resource-factory-paper = { id = "xyz.jpenilla.resource-factory-paper-convention", version.ref = "resource-factory" }
+# Declared for convenience; no module currently applies it.
 idea-ext = { id = "org.jetbrains.gradle.plugin.idea-ext", version.ref = "idea-ext" }

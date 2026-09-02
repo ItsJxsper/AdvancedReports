@@ -2,6 +2,7 @@ package de.itsjxsper.advancedreports.backend.reports.controller;
 
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
 import de.itsjxsper.advancedreports.backend.reports.service.ReportService;
+import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,9 +54,9 @@ public class ReportController {
             @ApiResponse(responseCode = "404", description = "Referenced object not found"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ReportDto> createReport(@Valid @RequestBody ReportUpdateDto reportUpdateDto) {
+    public ResponseEntity<ReportDto> createReport(@Valid @RequestBody ReportCreateDto reportCreateDto) {
         log.debug("Creating report");
-        ReportDto reportDto = this.reportService.createReport(reportUpdateDto);
+        ReportDto reportDto = this.reportService.createReport(reportCreateDto);
         return ResponseEntity.status(HttpStatus.CREATED).body(reportDto);
     }
 

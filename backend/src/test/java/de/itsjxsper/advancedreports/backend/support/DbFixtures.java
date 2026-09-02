@@ -7,10 +7,10 @@ import java.sql.SQLException;
 import java.util.UUID;
 
 /**
- * Inserts rows that cannot be created through the REST API.
+ * Inserts server rows directly, bypassing the REST API.
  * <p>
- * Only used for servers: {@code POST /api/v1/servers} is currently unusable (see
- * {@code ServerE2ETest}), yet reports reference a server. Going through SQL here keeps the report
+ * Only used for servers: seeding them over REST would couple unrelated tests to the server slice (see
+ * {@code ServerE2ETest}), and reports reference a server. Going through SQL here keeps the report
  * end-to-end tests meaningful instead of blocking them on an unrelated defect.
  */
 public final class DbFixtures {
@@ -22,8 +22,8 @@ public final class DbFixtures {
         UUID serverUuid = UUID.randomUUID();
 
         try (Connection connection = dataSource.getConnection();
-             // Hibernate mappt InetAddress auf den Postgres-Typ "inet", ein String-Parameter muss
-             // daher explizit gecastet werden.
+             // Hibernate maps InetAddress to the Postgres type "inet", so a String parameter has to
+             // be cast explicitly.
              PreparedStatement statement = connection.prepareStatement(
                      "insert into server_entity (server_uuid, ip_address, port) "
                              + "values (?, cast(? as inet), ?)")) {

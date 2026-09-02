@@ -18,34 +18,29 @@ jobs:
     outputs:
       version: ${{ steps.parse.outputs.version }}
     steps:
-      - name: Version aus Tag ermitteln
+      - name: Determine version from tag
         id: parse
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#backend-v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Erkannte Version: $VERSION"
+          echo "Detected version: $VERSION"
 
-  build-and-push:
-    needs: determine-version
+  # A backend-v* tag used to push an image to GHCR without running a single test
+  test:
+    name: Unit, integration and E2E tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
-      VERSION: ${{ needs.determine-version.outputs.version }}
-      actor: ${{ github.actor }}
-      token: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Repository Owner lowercase ermitteln
-        id: image
-        run: |
-          echo "name=$(echo '${{ github.repository_owner }}/advancedreports-backend' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: JDK 25 einrichten
+      - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -54,29 +49,76 @@ jobs:
       - name: Gradle Setup
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Login bei GHCR
+      - name: Unit tests (without Docker)
+        run: ./gradlew :backend:unitTest --stacktrace
+
+      - name: Check Docker daemon
+        run: docker info
+
+      - name: Integration and E2E tests (Testcontainers)
+        run: ./gradlew :backend:integrationTest --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-test-reports
+          path: |
+            backend/build/reports/tests/
+            backend/build/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  build-and-push:
+    needs: [determine-version, test]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.determine-version.outputs.version }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine lowercase repository owner
+        id: image
+        run: |
+          echo "name=$(echo '${{ github.repository_owner }}/advancedreports-backend' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Gradle Setup
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker Image mit Spring Boot Buildpacks bauen
+      - name: Build Docker image with Spring Boot buildpacks
         run: |
           ./gradlew :backend:bootBuildImage \
             --imageName="${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}"
 
-      - name: Zusätzlich als 'latest' taggen
+      - name: Additionally tag as 'latest'
         run: |
           docker tag "${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}" "${REGISTRY}/${{ steps.image.outputs.name }}:latest"
 
-      - name: Images pushen
+      - name: Push images
         run: |
           docker push "${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}"
           docker push "${REGISTRY}/${{ steps.image.outputs.name }}:latest"
 
-      - name: Zusammenfassung
+      - name: Summary
         run: |
-          echo "### Backend Docker Image veröffentlicht :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Backend Docker image published :rocket:" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`${REGISTRY}/${{ steps.image.outputs.name }}:${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- \`${REGISTRY}/${{ steps.image.outputs.name }}:latest\`" >> "$GITHUB_STEP_SUMMARY"

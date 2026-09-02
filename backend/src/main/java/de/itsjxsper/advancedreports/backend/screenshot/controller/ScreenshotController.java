@@ -3,8 +3,7 @@ package de.itsjxsper.advancedreports.backend.screenshot.controller;
 import de.itsjxsper.advancedreports.backend.ratelimit.annotation.RateLimited;
 import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotFoundException;
 import de.itsjxsper.advancedreports.backend.screenshot.service.ScreenshotService;
-import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotDto;
-import de.itsjxsper.advancedreports.common.model.screenshot.ScreenshotUpdateDto;
+import de.itsjxsper.advancedreports.common.model.screenshot.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,15 +12,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
 
 @Slf4j
 @RestController
@@ -63,21 +60,38 @@ public class ScreenshotController {
         return ResponseEntity.status(HttpStatus.CREATED).body(screenshotDto);
     }
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping("/upload-url")
     @RateLimited(serverUuid = false, discordUserId = true)
-    @Operation(summary = "Upload screenshot file", description = "Upload a screenshot file to S3 and persist its metadata")
+    @Operation(summary = "Request screenshot upload url",
+            description = "Reserve screenshot metadata and return a presigned URL the file is uploaded to directly")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Screenshot uploaded successfully"),
+            @ApiResponse(responseCode = "201", description = "Upload url created successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid input"),
+            @ApiResponse(responseCode = "503", description = "Screenshot storage is unavailable"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ScreenshotDto> uploadScreenshot(
-            @Parameter(description = "Screenshot file", required = true)
-            @RequestPart("file") MultipartFile file
+    public ResponseEntity<ScreenshotUploadUrlDto> requestUploadUrl(
+            @Valid @RequestBody ScreenshotUploadRequestDto uploadRequestDto
     ) {
-        log.debug("Uploading screenshot file name={}", file != null ? file.getOriginalFilename() : null);
-        ScreenshotDto screenshotDto = this.screenshotService.uploadScreenshot(file);
-        return ResponseEntity.status(HttpStatus.CREATED).body(screenshotDto);
+        log.debug("Requesting screenshot upload url for file name={}", uploadRequestDto.originalFilename());
+        ScreenshotUploadUrlDto uploadUrlDto = this.screenshotService.requestUpload(uploadRequestDto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(uploadUrlDto);
+    }
+
+    @PostMapping("/{screenshotId}/complete")
+    @RateLimited(serverUuid = false, discordUserId = true)
+    @Operation(summary = "Complete screenshot upload",
+            description = "Verify the uploaded object in S3 and mark the screenshot as uploaded")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Screenshot upload completed successfully"),
+            @ApiResponse(responseCode = "404", description = "Screenshot not found"),
+            @ApiResponse(responseCode = "409", description = "Screenshot was not uploaded"),
+            @ApiResponse(responseCode = "503", description = "Screenshot storage is unavailable"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<ScreenshotDto> completeUpload(@PathVariable Long screenshotId) {
+        log.debug("Completing screenshot upload with id={}", screenshotId);
+        return ResponseEntity.ok(this.screenshotService.completeUpload(screenshotId));
     }
 
     @GetMapping("/{screenshotId}")
@@ -97,39 +111,39 @@ public class ScreenshotController {
         return ResponseEntity.ok(screenshotDto);
     }
 
-    @GetMapping("/{screenshotId}/download")
+    @GetMapping("/{screenshotId}/download-url")
     @RateLimited(serverUuid = false, discordUserId = true)
-    @Operation(summary = "Download screenshot", description = "Download the screenshot stored in S3 by id")
+    @Operation(summary = "Get screenshot download url",
+            description = "Return a presigned URL the screenshot is downloaded from directly")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Screenshot downloaded successfully"),
+            @ApiResponse(responseCode = "200", description = "Download url created successfully"),
             @ApiResponse(responseCode = "404", description = "Screenshot not found"),
+            @ApiResponse(responseCode = "409", description = "Screenshot was not uploaded"),
+            @ApiResponse(responseCode = "503", description = "Screenshot storage is unavailable"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<Resource> downloadScreenshot(@PathVariable Long screenshotId) {
+    public ResponseEntity<ScreenshotDownloadUrlDto> getDownloadUrl(@PathVariable Long screenshotId) {
+        log.debug("Getting screenshot download url with id={}", screenshotId);
+        return ResponseEntity.ok(this.screenshotService.getDownloadUrl(screenshotId));
+    }
+
+    @GetMapping("/{screenshotId}/download")
+    @RateLimited(serverUuid = false, discordUserId = true)
+    @Operation(summary = "Download screenshot",
+            description = "Redirect to a presigned URL the screenshot is downloaded from directly")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "302", description = "Redirect to the presigned download url"),
+            @ApiResponse(responseCode = "404", description = "Screenshot not found"),
+            @ApiResponse(responseCode = "409", description = "Screenshot was not uploaded"),
+            @ApiResponse(responseCode = "503", description = "Screenshot storage is unavailable"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
+    })
+    public ResponseEntity<Void> downloadScreenshot(@PathVariable Long screenshotId) {
         log.debug("Downloading screenshot with id={}", screenshotId);
-
-        ScreenshotDto screenshotDto = this.screenshotService.getScreenshot(screenshotId);
-        if (screenshotDto == null) {
-            throw new ScreenshotNotFoundException(screenshotId);
-        }
-        byte[] content = this.screenshotService.downloadScreenshot(screenshotId);
-        if (content == null) {
-            throw new ScreenshotNotFoundException(screenshotId);
-        }
-        Resource resource = new ByteArrayResource(content);
-
-        String contentType = screenshotDto.contentType() != null && !screenshotDto.contentType().isBlank()
-                ? screenshotDto.contentType()
-                : MediaType.APPLICATION_OCTET_STREAM_VALUE;
-
-        ContentDisposition contentDisposition = ContentDisposition.attachment()
-                .filename(screenshotDto.originalFilename() != null ? screenshotDto.originalFilename() : "screenshot", StandardCharsets.UTF_8)
+        ScreenshotDownloadUrlDto downloadUrlDto = this.screenshotService.getDownloadUrl(screenshotId);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(downloadUrlDto.downloadUrl()))
                 .build();
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
-                .body(resource);
     }
 
     @PatchMapping("/{screenshotId}")
@@ -179,4 +193,3 @@ public class ScreenshotController {
         return ResponseEntity.ok(this.screenshotService.countScreenshots());
     }
 }
-

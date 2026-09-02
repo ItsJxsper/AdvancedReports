@@ -53,11 +53,11 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("Speichern")
+    @DisplayName("Persisting")
     class Persisting {
 
         @Test
-        @DisplayName("speichert einen vollständigen Report mit allen Assoziationen")
+        @DisplayName("persists a complete report with every association")
         void shouldPersistReport() {
             ReportsEntity report = persistReport();
             entityManager.clear();
@@ -76,7 +76,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lehnt einen Report ohne Standort ab, weil die Spalte nicht nullable ist")
+        @DisplayName("rejects a report without a location because the column is not nullable")
         void shouldRejectReportWithoutLocation() {
             ReportsEntity report = TestDataFactory.report(reporter, reported, handler, category, server);
             report.setLocation(null);
@@ -86,7 +86,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lehnt einen Report ohne Status ab, weil die Spalte nicht nullable ist")
+        @DisplayName("rejects a report without a status because the column is not nullable")
         void shouldRejectReportWithoutStatus() {
             ReportsEntity report = TestDataFactory.report(reporter, reported, handler, category, server);
             report.setReportStatus(null);
@@ -96,7 +96,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("erlaubt einen Report ohne Server und ohne Screenshot")
+        @DisplayName("allows a report without a server and without a screenshot")
         void shouldAllowReportWithoutOptionalAssociations() {
             ReportsEntity report = TestDataFactory.report(reporter, reported, handler, category, null);
             report.setScreenshotEntity(null);
@@ -119,7 +119,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
     class FindAllOrdered {
 
         @Test
-        @DisplayName("sortiert absteigend nach Erstellungszeitpunkt")
+        @DisplayName("sorts descending by creation time")
         void shouldSortByCreatedAtDescending() {
             persistReport();
             persistReport();
@@ -135,7 +135,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("respektiert die Seitengröße und meldet die Gesamtanzahl")
+        @DisplayName("respects the page size and reports the total count")
         void shouldPaginate() {
             persistReport();
             persistReport();
@@ -152,7 +152,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert eine leere Seite, wenn keine Reports existieren")
+        @DisplayName("returns an empty page when no reports exist")
         void shouldReturnEmptyPage() {
             assertThat(reportRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 10)))
                     .isEmpty();
@@ -160,11 +160,11 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("Löschen")
+    @DisplayName("Deleting")
     class Deleting {
 
         @Test
-        @DisplayName("löscht einen Report, ohne die referenzierten Spieler zu entfernen")
+        @DisplayName("deletes a report without removing the referenced players")
         void shouldDeleteReportOnly() {
             ReportsEntity report = persistReport();
 
@@ -183,7 +183,7 @@ class ReportRepositoryIT extends AbstractRepositoryIT {
     class Counting {
 
         @Test
-        @DisplayName("zählt alle gespeicherten Reports")
+        @DisplayName("counts every persisted report")
         void shouldCountReports() {
             persistReport();
             persistReport();

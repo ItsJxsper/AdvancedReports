@@ -28,7 +28,7 @@ paperPluginYaml {
     main = "de.itsjxsper.advancedreports.plugin.AdvancedReportsPlugin"
     bootstrapper = "de.itsjxsper.advancedreports.plugin.AdvancedReportsPluginBootstrap"
     loader = "de.itsjxsper.advancedreports.plugin.AdvancedReportsPluginLoader"
-    apiVersion = "26.2"
+    apiVersion = libs.versions.minecraft.get()
 
     name = "AdvancedReports"
     load = BukkitPluginYaml.PluginLoadOrder.STARTUP
@@ -36,9 +36,7 @@ paperPluginYaml {
     website = "https://github.com/ItsJxsper/AdvancedReports"
 }
 
-java {
-    toolchain.languageVersion = JavaLanguageVersion.of(25)
-}
+// The toolchain comes from the root subprojects block, which reads it from the version catalog.
 
 tasks {
     build {

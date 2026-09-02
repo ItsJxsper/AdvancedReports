@@ -11,16 +11,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PlayerService {
 
     private final PlayerRepository playerRepository;
 
+    @Transactional
     public PlayerDTO createPlayer(PlayerUpdateDTO playerUpdateDTO) {
         log.debug("Creating player with uuid={}", playerUpdateDTO.playerUuid());
         this.playerRepository.findByPlayerUuid(playerUpdateDTO.playerUuid())
@@ -31,7 +34,9 @@ public class PlayerService {
 
         PlayerEntity playerEntity = new PlayerEntity();
         playerEntity.setPlayerUuid(playerUpdateDTO.playerUuid());
-        playerEntity.setPlayerName(playerUpdateDTO.playerName().orElse(null));
+        // player_name is nullable = false, so the name is mandatory when creating a player.
+        playerEntity.setPlayerName(playerUpdateDTO.playerName()
+                .orElseThrow(() -> new IllegalArgumentException("Player name is required when creating a player")));
 
         var savedEntity = this.playerRepository.save(playerEntity);
         log.debug("Created player with uuid={} and name={}", savedEntity.getPlayerUuid(), savedEntity.getPlayerName());
@@ -39,12 +44,15 @@ public class PlayerService {
         return new PlayerDTO(savedEntity.getPlayerUuid(), savedEntity.getPlayerName());
     }
 
+    @Transactional
     public PlayerDTO updatePlayer(PlayerUpdateDTO playerUpdateDTO) {
         log.debug("Updating player with uuid={}", playerUpdateDTO.playerUuid());
         var playerEntity = this.playerRepository.findByPlayerUuid(playerUpdateDTO.playerUuid())
                 .orElseThrow(() -> new PlayerNotFoundException(playerUpdateDTO.playerUuid()));
 
-        playerEntity.setPlayerName(playerUpdateDTO.playerName().orElse(null));
+        // PATCH semantics: an empty Optional means "field not sent", not "set to null".
+        // orElse(null) otherwise wiped the existing name into the NOT NULL column.
+        playerUpdateDTO.playerName().ifPresent(playerEntity::setPlayerName);
 
         var savedEntity = this.playerRepository.save(playerEntity);
         log.debug("Updated player with uuid={} and name={}", savedEntity.getPlayerUuid(), savedEntity.getPlayerName());
@@ -52,6 +60,7 @@ public class PlayerService {
         return new PlayerDTO(savedEntity.getPlayerUuid(), savedEntity.getPlayerName());
     }
 
+    @Transactional
     public void deletePlayer(UUID playerUuid) {
         log.debug("Deleting player with uuid={}", playerUuid);
         var playerEntity = this.playerRepository.findByPlayerUuid(playerUuid)

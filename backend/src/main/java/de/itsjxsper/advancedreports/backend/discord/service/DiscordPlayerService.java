@@ -1,10 +1,12 @@
 package de.itsjxsper.advancedreports.backend.discord.service;
 
 import de.itsjxsper.advancedreports.backend.discord.data.repository.DiscordPlayerRepository;
+import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordPlayerAlreadyExistException;
 import de.itsjxsper.advancedreports.backend.discord.exceptions.DiscordUserNotFoundException;
 import de.itsjxsper.advancedreports.backend.discord.mapper.DiscordPlayerMapper;
 import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
 import de.itsjxsper.advancedreports.backend.player.data.repository.PlayerRepository;
+import de.itsjxsper.advancedreports.backend.player.exception.PlayerNotFoundException;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +26,29 @@ public class DiscordPlayerService {
     private final DiscordPlayerMapper discordPlayerMapper;
 
 
+    // Without their own @Transactional these methods inherit the class-level readOnly = true.
+    // Hibernate sets FlushMode.MANUAL there, so INSERT/UPDATE/DELETE are never flushed: the
+    // endpoint answers 201 with a fully populated DTO while persisting nothing.
+    @Transactional
     public DiscordPlayerDto createDiscordPlayer(DiscordPlayerDto discordPlayerDto) {
         log.debug("Creating DiscordPlayer with data: {}", discordPlayerDto);
 
         PlayerEntity playerEntity = this.playerRepository.findByPlayerUuid(discordPlayerDto.playerEntityPlayerUUID())
-                .orElseThrow(() -> new DiscordUserNotFoundException(discordPlayerDto.playerEntityPlayerUUID()));
+                // A missing Minecraft player is not a Discord error - PlayerNotFoundException
+                // exists for exactly this and maps to PLAYER_NOT_FOUND.
+                .orElseThrow(() -> new PlayerNotFoundException(discordPlayerDto.playerEntityPlayerUUID()));
+
+        // There used to be no existence check here at all: the unique join column let a second
+        // link for the same player surface as a raw constraint violation, and discord_user_id
+        // without a unique constraint allowed unlimited players per Discord account.
+        if (this.discordPlayerRepository.existsByPlayerEntity_PlayerUuid(discordPlayerDto.playerEntityPlayerUUID())) {
+            throw new DiscordPlayerAlreadyExistException(discordPlayerDto.playerEntityPlayerUUID());
+        }
+
+        if (discordPlayerDto.discordUserId() != null
+                && this.discordPlayerRepository.existsByDiscordUserId(discordPlayerDto.discordUserId())) {
+            throw new DiscordPlayerAlreadyExistException(discordPlayerDto.discordUserId());
+        }
 
         var discordPlayerEntity = this.discordPlayerMapper.toEntity(discordPlayerDto);
         discordPlayerEntity.setPlayerEntity(playerEntity);
@@ -59,6 +79,7 @@ public class DiscordPlayerService {
         return this.discordPlayerMapper.toDto(discordPlayerEntity);
     }
 
+    @Transactional
     public DiscordPlayerDto updateDiscordPlayer(DiscordPlayerDto discordPlayerDto) {
         log.debug("Updating DiscordPlayer with id={}", discordPlayerDto.id());
 
@@ -75,6 +96,7 @@ public class DiscordPlayerService {
         return this.discordPlayerMapper.toDto(savedEntity);
     }
 
+    @Transactional
     public void deleteDiscordPlayerByDiscordId(Long discordPlayerId) {
         log.debug("Deleting DiscordPlayer with id={}", discordPlayerId);
 
@@ -85,6 +107,7 @@ public class DiscordPlayerService {
         log.debug("Deleted DiscordPlayer with id={}", discordPlayerId);
     }
 
+    @Transactional
     public void deleteDiscordPlayerByPlayerUUID(UUID playerUUID) {
         log.debug("Deleting DiscordPlayer for playerUUID={}", playerUUID);
 

@@ -8,8 +8,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.AmqpException;
+import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -29,25 +29,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Only asking the broker itself shows the difference — and, as the tests below document, the
  * consequences reach well beyond the Discord queue.
  */
-@DisplayName("RabbitMQ-Topologie")
+@DisplayName("RabbitMQ topology")
 class RabbitMQConfigurationIT extends AbstractE2ETest {
-
+    
     @Autowired
-    private RabbitAdmin rabbitAdmin;
+    private AmqpAdmin amqpAdmin;
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
 
     private Properties queueProperties(String queueName) {
-        return rabbitAdmin.getQueueProperties(queueName);
+        return amqpAdmin.getQueueProperties(queueName);
     }
 
     /**
      * Empties the plugin queue before a routing assertion.
      * <p>
      * Retries on {@link AmqpException} on purpose: the first operation on a fresh channel triggers
-     * RabbitAdmin's declaration pass, which fails with a 404 for the undeclared {@code notify.discord}
-     * queue and takes the channel down with it. See {@code shouldCurrentlyNotDeclareDiscordQueue}.
+     * RabbitAdmin s declaration pass, and a channel lost during that pass has to be replaced before
+     * the next attempt can succeed.
      */
     private void drainPluginQueue() {
         for (int attempt = 0; attempt < 5; attempt++) {
@@ -77,53 +77,36 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Deklarierte Queues")
+    @DisplayName("Declared queues")
     class DeclaredQueues {
 
         @Test
-        @DisplayName("deklariert notify.plugin")
+        @DisplayName("declares notify.plugin")
         void shouldDeclarePluginQueue() {
             assertThat(queueProperties(RabbitMQConfiguration.QUEUE_PLUGIN))
-                    .as("Die Plugin-Queue ist als @Bean deklariert und muss auf dem Broker existieren")
+                    .as("The plugin queue is declared as a @Bean and has to exist on the broker")
                     .isNotNull();
         }
 
         @Test
-        @DisplayName("deklariert die Dead-Letter-Queue notify.discord.dlq")
+        @DisplayName("declares the dead-letter queue notify.discord.dlq")
         void shouldDeclareDeadLetterQueue() {
             assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD_DLQ)).isNotNull();
         }
 
         @Test
-        @Disabled("BUG: RabbitMQConfiguration#notifyDiscordQueue() fehlt die @Bean-Annotation "
-                + "(config/RabbitMQConfiguration.java:44). Die Methode wird nur noch direkt aus "
-                + "discordBinding() aufgerufen, daher kennt RabbitAdmin die Queue nicht und legt sie "
-                + "nie auf dem Broker an. Folgen: (1) notify.discord existiert nicht, jedes "
-                + "report.created/report.updated-Event geht fuer den Discord-Bot verloren, inklusive "
-                + "des Dead-Letter-Pfads, der genau das abfangen sollte. (2) Schwerwiegender: die "
-                + "Deklaration von discordBinding scheitert mit '404 NOT_FOUND - no queue "
-                + "notify.discord' und reisst den AMQP-Kanal mit, auf dem RabbitAdmin gerade "
-                + "deklariert - siehe shouldPoisonTheChannelForUnrelatedOperations. Fix: @Bean "
-                + "ergaenzen.")
-        @DisplayName("deklariert notify.discord")
+        @DisplayName("declares notify.discord")
         void shouldDeclareDiscordQueue() {
             assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD)).isNotNull();
         }
 
-        @Test
-        @DisplayName("dokumentiert, dass notify.discord aktuell nicht existiert")
-        void shouldCurrentlyNotDeclareDiscordQueue() {
-            assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD))
-                    .as("Ist-Verhalten: die Queue fehlt, weil an notifyDiscordQueue() das @Bean fehlt")
-                    .isNull();
-        }
 
         @Test
-        @DisplayName("deklariert den Fanout-Exchange und das Dead-Letter-Exchange")
+        @DisplayName("declares the fanout exchange and the dead-letter exchange")
         void shouldDeclareExchanges() {
-            // Fuer Exchanges gibt es kein getQueueProperties-Aequivalent; dass der Fanout existiert,
-            // beweist stattdessen die erfolgreiche Auslieferung in FanoutExchange, und dass das DLX
-            // existiert, zeigt die vorhandene, daran gebundene DLQ.
+            // There is no getQueueProperties equivalent for exchanges; that the fanout exists is
+            // proven instead by the successful delivery in FanoutExchange, and that the DLX exists
+            // is shown by the DLQ bound to it.
             assertThat(RabbitMQConfiguration.EXCHANGE).isEqualTo("reports.notify");
             assertThat(RabbitMQConfiguration.DLX).isEqualTo("reports.dlx");
             assertThat(queueProperties(RabbitMQConfiguration.QUEUE_DISCORD_DLQ)).isNotNull();
@@ -131,11 +114,11 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Fanout-Exchange")
+    @DisplayName("Fanout exchange")
     class FanoutExchange {
 
         @Test
-        @DisplayName("liefert ein Event an die Plugin-Queue aus")
+        @DisplayName("delivers an event to the plugin queue")
         void shouldRouteEventToPluginQueue() {
             drainPluginQueue();
 
@@ -155,7 +138,7 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("ignoriert den Routing-Key, wie es für einen Fanout erwartet wird")
+        @DisplayName("ignores the routing key, as expected for a fanout")
         void shouldIgnoreRoutingKey() {
             drainPluginQueue();
 
@@ -169,7 +152,7 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("überträgt nur die schlanke Event-Nutzlast, kein vollständiges Report-Objekt")
+        @DisplayName("carries only the lightweight event payload, not a full report object")
         void shouldOnlyCarryLightweightPayload() {
             drainPluginQueue();
 
@@ -180,26 +163,26 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
 
             assertThat(message).isNotNull();
             String body = new String(message.getBody(), StandardCharsets.UTF_8);
-            // Laut README holen Consumer die Details per REST nachgeladen - im Event stehen nur
-            // reportId, serverUuid und timestamp.
+            // Per the README consumers re-fetch the details over REST - the event carries only
+            // reportId, serverUuid and timestamp.
             assertThat(body).doesNotContain("reason").doesNotContain("location").doesNotContain("reporter");
         }
     }
 
     @Nested
-    @DisplayName("Nachrichtenkonverter")
+    @DisplayName("Message converter")
     class MessageConverterSetup {
 
         @Test
-        @Disabled("BUG: RabbitMQConfiguration#messageConverter() gibt einen nackten "
-                + "JacksonJsonMessageConverter zurueck (config/RabbitMQConfiguration.java:84). Dessen "
-                + "Standard-Whitelist fuer das Deserialisieren umfasst nur [java.util, java.lang], "
-                + "deshalb scheitert jeder Consumer, der diese Bean nutzt, mit \"The class "
-                + "'...ReportCreatedEvent' is not in the trusted packages\". Senden funktioniert, "
-                + "Empfangen nicht - das Backend kann seine eigenen Events nicht zurueck lesen, und "
-                + "Plugin sowie Discord-Bot koennen es damit auch nicht. Fix: "
-                + "setTrustedPackages(\"de.itsjxsper.advancedreports\") am Konverter setzen.")
-        @DisplayName("kann die eigenen Event-Typen wieder deserialisieren")
+        @Disabled("BUG: RabbitMQConfiguration#messageConverter() returns a bare "
+                + "JacksonJsonMessageConverter (config/RabbitMQConfiguration.java:84). Its default "
+                + "whitelist for deserialisation only covers [java.util, java.lang], so every "
+                + "consumer using that bean fails with \"The class "
+                + "'...ReportCreatedEvent' is not in the trusted packages\". Sending works, "
+                + "receiving does not - the backend cannot read back its own events, and neither "
+                + "can the plugin or the Discord bot. Fix: "
+                + "call setTrustedPackages(\"de.itsjxsper.advancedreports\") on the converter.")
+        @DisplayName("can deserialise its own event types again")
         void shouldDeserialiseOwnEvents() {
             drainPluginQueue();
 
@@ -213,7 +196,7 @@ class RabbitMQConfigurationIT extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("dokumentiert, dass das Deserialisieren eigener Events aktuell scheitert")
+        @DisplayName("documents that deserialising the project's own events currently fails")
         void shouldCurrentlyFailToDeserialiseOwnEvents() {
             drainPluginQueue();
 
