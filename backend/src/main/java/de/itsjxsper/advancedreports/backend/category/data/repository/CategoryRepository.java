@@ -25,8 +25,8 @@ public interface CategoryRepository extends JpaRepository<CategoryEntity, Long> 
             """)
     List<Object[]> countReportsPerCategory();
 
-    // r.categoryEntity ist per Definition dieselbe Zeile wie c - das war ein Self-Join zurueck auf
-    // die eigene Tabelle, und die Bedingung lief gegen eine Spalte, die fest auf true stand.
+    // r.categoryEntity is by definition the same row as c - that was a self-join back onto the
+    // category's own table, with a condition running against a column pinned to true.
     @Query("""
             select distinct c
             from CategoryEntity c

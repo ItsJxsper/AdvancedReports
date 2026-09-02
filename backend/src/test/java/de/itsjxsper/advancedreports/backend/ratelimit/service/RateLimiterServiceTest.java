@@ -71,7 +71,7 @@ class RateLimiterServiceTest {
     class TryConsumeServer {
 
         @Test
-        @DisplayName("nutzt den Redis-Key rl:server:<uuid>")
+        @DisplayName("uses the Redis key rl:server:<uuid>")
         void shouldUseServerKeyPrefix() {
             rateLimiterService.tryConsumeServer("server-1");
 
@@ -79,7 +79,7 @@ class RateLimiterServiceTest {
         }
 
         @Test
-        @DisplayName("konfiguriert das Bucket mit den Server-Requests pro Sekunde")
+        @DisplayName("configures the bucket with the server requests per second")
         void shouldUseServerCapacity() {
             properties.setServerRequestsPerSecond(250);
 
@@ -89,7 +89,7 @@ class RateLimiterServiceTest {
         }
 
         @Test
-        @DisplayName("gibt die Probe des Buckets zurück")
+        @DisplayName("returns the bucket's probe")
         void shouldReturnProbe() {
             ConsumptionProbe probe = rateLimiterService.tryConsumeServer("server-1");
 
@@ -103,7 +103,7 @@ class RateLimiterServiceTest {
     class TryConsumePlayer {
 
         @Test
-        @DisplayName("nutzt den Redis-Key rl:player:<uuid>")
+        @DisplayName("uses the Redis key rl:player:<uuid>")
         void shouldUsePlayerKeyPrefix() {
             rateLimiterService.tryConsumePlayer("player-1");
 
@@ -111,7 +111,7 @@ class RateLimiterServiceTest {
         }
 
         @Test
-        @DisplayName("konfiguriert das Bucket mit den Player-Requests pro Sekunde")
+        @DisplayName("configures the bucket with the player requests per second")
         void shouldUsePlayerCapacity() {
             properties.setPlayerRequestsPerSecond(7);
 
@@ -121,7 +121,7 @@ class RateLimiterServiceTest {
         }
 
         @Test
-        @DisplayName("gibt eine abgelehnte Probe zurück, wenn das Bucket leer ist")
+        @DisplayName("returns a rejected probe when the bucket is empty")
         void shouldReturnRejectedProbe() {
             when(bucketProxy.tryConsumeAndReturnRemaining(1))
                     .thenReturn(ConsumptionProbe.rejected(0, 500_000_000L, 500_000_000L));
@@ -138,7 +138,7 @@ class RateLimiterServiceTest {
     class TryConsumeDiscord {
 
         @Test
-        @DisplayName("nutzt den Redis-Key rl:discord:<id>")
+        @DisplayName("uses the Redis key rl:discord:<id>")
         void shouldUseDiscordKeyPrefix() {
             rateLimiterService.tryConsumeDiscord("123456789");
 
@@ -146,7 +146,7 @@ class RateLimiterServiceTest {
         }
 
         @Test
-        @DisplayName("konfiguriert das Bucket mit den Discord-Requests pro Sekunde")
+        @DisplayName("configures the bucket with the Discord requests per second")
         void shouldUseDiscordCapacity() {
             properties.setDiscordRequestsPerSecond(9);
 

@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * through create → read → update → delete over real HTTP, while checking that the corresponding
  * RabbitMQ notifications actually land on the broker.
  */
-@DisplayName("E2E: Report-Lebenszyklus")
+@DisplayName("E2E: Report lifecycle")
 class ReportLifecycleE2ETest extends AbstractE2ETest {
 
     @Autowired
@@ -60,8 +60,8 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         handler = ApiFixtures.createPlayer(client(), "Handler");
         category = ApiFixtures.createCategory(client(), "cheating");
         screenshotId = ApiFixtures.createScreenshot(client()).id();
-        // Der Server muss per SQL entstehen, weil POST /api/v1/servers nicht benutzbar ist -
-        // siehe ServerE2ETest.
+        // The server has to be created through SQL because POST /api/v1/servers is unusable -
+        // see ServerE2ETest.
         serverUuid = DbFixtures.insertServer(dataSource);
 
         drainPluginQueue();
@@ -72,7 +72,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
                 reporter.playerUUID(),
                 reported.playerUUID(),
                 category.id(),
-                "Fliegt seit fünf Minuten über der Spawn-Insel",
+                "Flying over the spawn island for five minutes",
                 serverUuid,
                 "world:120:80:-340",
                 ReportStatus.PENDING,
@@ -122,11 +122,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Anlegen")
+    @DisplayName("Creating")
     class Creating {
 
         @Test
-        @DisplayName("legt einen Report an und liefert ihn mit id zurück")
+        @DisplayName("creates a report and returns it with an id")
         void shouldCreateReport() {
             ResponseEntity<ReportDto> response = postReport(newReport());
 
@@ -146,7 +146,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("veröffentlicht ein report.created-Event auf dem Fanout-Exchange")
+        @DisplayName("publishes a report.created event on the fanout exchange")
         void shouldPublishReportCreatedEvent() {
             ResponseEntity<ReportDto> response = postReport(newReport());
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -161,10 +161,10 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 SERVER_NOT_FOUND für einen unbekannten Server")
+        @DisplayName("answers 404 SERVER_NOT_FOUND for an unknown server")
         void shouldRejectUnknownServer() {
             ReportCreateDto withUnknownServer = new ReportCreateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
+                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Reason",
                     UUID.randomUUID(), "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(),
                     null, screenshotId);
 
@@ -180,10 +180,10 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("legt einen Report ohne Screenshot an")
+        @DisplayName("creates a report without a screenshot")
         void shouldCreateReportWithoutScreenshot() {
             ReportCreateDto withoutScreenshot = new ReportCreateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
+                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Reason",
                     serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(), null, null);
 
             ResponseEntity<ReportDto> response = postReport(withoutScreenshot);
@@ -193,10 +193,10 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND für einen unbekannten Screenshot")
+        @DisplayName("answers 404 SCREENSHOT_NOT_FOUND for an unknown screenshot")
         void shouldRejectUnknownScreenshot() {
             ReportCreateDto withUnknownScreenshot = new ReportCreateDto(
-                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Grund",
+                    reporter.playerUUID(), reported.playerUUID(), category.id(), "Reason",
                     serverUuid, "world:0:0:0", ReportStatus.PENDING, handler.playerUUID(),
                     null, 9_999L);
 
@@ -213,11 +213,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Lesen, Ändern und Löschen")
+    @DisplayName("Reading, updating and deleting")
     class ReadUpdateDelete {
 
         @Test
-        @DisplayName("liest einen angelegten Report über seine id")
+        @DisplayName("reads a created report by its id")
         void shouldReadReport() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -228,21 +228,21 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().reason())
-                    .isEqualTo("Fliegt seit fünf Minuten über der Spawn-Insel");
+                    .isEqualTo("Flying over the spawn island for five minutes");
         }
 
         @Test
-        @DisplayName("ändert den Status und veröffentlicht ein report.updated-Event")
+        @DisplayName("changes the status and publishes a report.updated event")
         void shouldUpdateStatusAndPublishEvent() {
             Long reportId = postReport(newReport()).getBody().id();
             drainPluginQueue();
 
-            // reporterUUID wird hier bewusst mitgeschickt, um zu belegen, dass ein PATCH auch
-            // unveraenderte Felder tragen darf. Dass es entfallen kann, prueft
+            // reporterUUID is sent deliberately here, to show that a PATCH may also carry
+            // unchanged fields. That it can be omitted is covered by
             // shouldUpdateOnlyTheStatus.
             ReportUpdateDto statusChange = new ReportUpdateDto(
                     reporter.playerUUID(), null, null, null, null, null,
-                    ReportStatus.APPROVED, null, "Bestätigt und gebannt", null);
+                    ReportStatus.APPROVED, null, "Confirmed and banned", null);
 
             ResponseEntity<ReportDto> response = client().patch()
                     .uri("/api/v1/reports/{id}", reportId)
@@ -253,7 +253,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
             assertThat(response.getBody().reportStatus()).isEqualTo(ReportStatus.APPROVED);
-            assertThat(response.getBody().handlerNote()).isEqualTo("Bestätigt und gebannt");
+            assertThat(response.getBody().handlerNote()).isEqualTo("Confirmed and banned");
 
             String body = receiveEventBody();
 
@@ -265,12 +265,12 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("schreibt updatedAt fort, sichtbar beim erneuten Lesen des Reports")
+        @DisplayName("advances updatedAt, visible when the report is read again")
         void shouldSetUpdatedAtOnPatch() {
             ReportDto created = postReport(newReport()).getBody();
 
-            // @UpdateTimestamp setzt den Wert schon beim Anlegen, nicht erst bei der ersten
-            // Aenderung - anders als das fruehere @PreUpdate, das updatedAt bis dahin null liess.
+            // @UpdateTimestamp sets the value on insert already, not only on the first change -
+            // unlike the earlier @PreUpdate, which left updatedAt null until then.
             assertThat(created.updatedAt()).isNotNull();
 
             ReportUpdateDto statusChange = new ReportUpdateDto(
@@ -289,15 +289,15 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ReportDto.class);
 
-            // Der neue Zeitstempel entsteht erst beim Flush am Transaktionsende, also nach dem
-            // Mappen der PATCH-Antwort - sichtbar wird er daher beim erneuten Lesen.
+            // The new timestamp only comes into being at the flush at transaction end, so after the
+            // PATCH response was mapped - it therefore becomes visible when reading again.
             assertThat(reread.getBody().updatedAt()).isAfter(created.updatedAt());
             assertThat(reread.getBody().createdAt()).isEqualTo(created.createdAt());
             assertThat(reread.getBody().reportStatus()).isEqualTo(ReportStatus.APPROVED);
         }
 
         @Test
-        @DisplayName("ändert ausschließlich den Status, ohne weitere Felder mitzuschicken")
+        @DisplayName("changes the status only, without sending any other field")
         void shouldUpdateOnlyTheStatus() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -316,7 +316,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("listet Reports paginiert und meldet die Gesamtanzahl")
+        @DisplayName("lists reports with pagination and reports the total count")
         void shouldListReports() {
             postReport(newReport());
             postReport(newReport());
@@ -338,7 +338,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("löscht einen Report und liefert ihn danach nicht mehr aus")
+        @DisplayName("deletes a report and stops serving it afterwards")
         void shouldDeleteReport() {
             Long reportId = postReport(newReport()).getBody().id();
 
@@ -356,7 +356,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 REPORT_NOT_FOUND für eine unbekannte id")
+        @DisplayName("answers 404 REPORT_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() {
             ResponseEntity<ApiErrorResponse> response = client().get()
                     .uri("/api/v1/reports/9999")
@@ -369,11 +369,11 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Auswirkungen auf andere Domains")
+    @DisplayName("Effects on other domains")
     class CrossDomainEffects {
 
         @Test
-        @DisplayName("erhöht die Reportanzahl des Servers")
+        @DisplayName("increases the server's report count")
         void shouldCountTowardsServer() {
             postReport(newReport());
             postReport(newReport());
@@ -388,7 +388,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("erhöht die Reportanzahl der Kategorie")
+        @DisplayName("increases the category's report count")
         void shouldCountTowardsCategory() {
             postReport(newReport());
 
@@ -402,7 +402,7 @@ class ReportLifecycleE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("lässt die Kategorie in der Liste mit aktiven Reports auftauchen")
+        @DisplayName("makes the category appear in the list of categories with active reports")
         void shouldAppearInCategoriesWithActiveReports() {
             postReport(newReport());
 

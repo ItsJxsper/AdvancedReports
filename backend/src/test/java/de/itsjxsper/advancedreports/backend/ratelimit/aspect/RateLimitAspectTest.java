@@ -84,11 +84,11 @@ class RateLimitAspectTest {
     }
 
     @Nested
-    @DisplayName("Server-Limit")
+    @DisplayName("Server limit")
     class ServerLimit {
 
         @Test
-        @DisplayName("lässt den Aufruf durch und setzt X-RateLimit-Server-Remaining")
+        @DisplayName("lets the call through and sets X-RateLimit-Server-Remaining")
         void shouldProceedAndSetRemainingHeader() throws Throwable {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, SERVER_UUID);
             when(rateLimiterService.tryConsumeServer(SERVER_UUID))
@@ -103,7 +103,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("wirft MissingHeaderException, wenn X-Server-UUID fehlt")
+        @DisplayName("throws MissingHeaderException when X-Server-UUID is missing")
         void shouldRejectMissingHeader() {
             assertThatThrownBy(() -> aspect.handleRateLimit(joinPoint, annotationOf("serverOnly")))
                     .isInstanceOf(MissingHeaderException.class)
@@ -113,7 +113,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("wirft MissingHeaderException, wenn X-Server-UUID leer ist")
+        @DisplayName("throws MissingHeaderException when X-Server-UUID is empty")
         void shouldRejectBlankHeader() {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, "   ");
 
@@ -122,7 +122,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("wirft RateLimitExceededException, wenn das Bucket leer ist")
+        @DisplayName("throws RateLimitExceededException when the bucket is empty")
         void shouldRejectWhenBucketExhausted() throws Throwable {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, SERVER_UUID);
             when(rateLimiterService.tryConsumeServer(SERVER_UUID))
@@ -136,7 +136,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("setzt den Remaining-Header auch bei Ablehnung")
+        @DisplayName("sets the remaining header even when rejecting")
         void shouldSetRemainingHeaderOnRejection() {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, SERVER_UUID);
             when(rateLimiterService.tryConsumeServer(SERVER_UUID))
@@ -149,7 +149,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("rechnet die Wartezeit aus Nanosekunden in Millisekunden um")
+        @DisplayName("converts the wait time from nanoseconds to milliseconds")
         void shouldConvertRetryAfterToMillis() {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, SERVER_UUID);
             when(rateLimiterService.tryConsumeServer(SERVER_UUID))
@@ -163,11 +163,11 @@ class RateLimitAspectTest {
     }
 
     @Nested
-    @DisplayName("Kombination aus Server- und Player-Limit")
+    @DisplayName("Server and player limit combined")
     class ServerAndPlayerLimit {
 
         @Test
-        @DisplayName("prüft beide Buckets und setzt beide Remaining-Header")
+        @DisplayName("checks both buckets and sets both remaining headers")
         void shouldCheckBothBuckets() throws Throwable {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, SERVER_UUID);
             request.addHeader(RateLimitAspect.HEADER_PLAYER_UUID, PLAYER_UUID);
@@ -184,7 +184,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("wirft MissingHeaderException, wenn nur X-Player-UUID fehlt")
+        @DisplayName("throws MissingHeaderException when only X-Player-UUID is missing")
         void shouldRejectMissingPlayerHeader() throws Throwable {
             request.addHeader(RateLimitAspect.HEADER_SERVER_UUID, SERVER_UUID);
             when(rateLimiterService.tryConsumeServer(SERVER_UUID))
@@ -199,11 +199,11 @@ class RateLimitAspectTest {
     }
 
     @Nested
-    @DisplayName("Discord-Limit")
+    @DisplayName("Discord limit")
     class DiscordLimit {
 
         @Test
-        @DisplayName("prüft nur das Discord-Bucket, wenn serverUuid abgeschaltet ist")
+        @DisplayName("checks only the Discord bucket when serverUuid is switched off")
         void shouldOnlyCheckDiscordBucket() throws Throwable {
             request.addHeader(RateLimitAspect.HEADER_DISCORD_ID, DISCORD_ID);
             when(rateLimiterService.tryConsumeDiscord(DISCORD_ID))
@@ -218,7 +218,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("wirft MissingHeaderException, wenn X-Discord-ID fehlt")
+        @DisplayName("throws MissingHeaderException when X-Discord-ID is missing")
         void shouldRejectMissingDiscordHeader() {
             assertThatThrownBy(() -> aspect.handleRateLimit(joinPoint, annotationOf("discordOnly")))
                     .isInstanceOf(MissingHeaderException.class)
@@ -226,7 +226,7 @@ class RateLimitAspectTest {
         }
 
         @Test
-        @DisplayName("wirft RateLimitExceededException, wenn das Discord-Bucket leer ist")
+        @DisplayName("throws RateLimitExceededException when the Discord bucket is empty")
         void shouldRejectWhenDiscordBucketExhausted() {
             request.addHeader(RateLimitAspect.HEADER_DISCORD_ID, DISCORD_ID);
             when(rateLimiterService.tryConsumeDiscord(DISCORD_ID))
@@ -238,11 +238,11 @@ class RateLimitAspectTest {
     }
 
     @Nested
-    @DisplayName("Ohne aktives Limit")
+    @DisplayName("Without an active limit")
     class NoLimit {
 
         @Test
-        @DisplayName("lässt den Aufruf ohne jeden Header durch")
+        @DisplayName("lets a call through without any header")
         void shouldProceedWithoutAnyHeader() throws Throwable {
             when(joinPoint.proceed()).thenReturn("ok");
 

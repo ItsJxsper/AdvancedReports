@@ -1,10 +1,10 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Drives the category endpoints over real HTTP against a running server, a real Postgres and a real
  * Redis-backed rate limiter.
  */
-@DisplayName("E2E: Kategorien")
+@DisplayName("E2E: Categories")
 class CategoryE2ETest extends AbstractE2ETest {
 
     private CategoryDto createCategory(String name) {
@@ -38,11 +38,11 @@ class CategoryE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Lebenszyklus")
+    @DisplayName("Lifecycle")
     class Lifecycle {
 
         @Test
-        @DisplayName("legt eine Kategorie an, liest, ändert und löscht sie wieder")
+        @DisplayName("creates a category, reads, updates and deletes it again")
         void shouldRunFullCrudCycle() {
             CategoryDto created = createCategory("cheating");
 
@@ -50,7 +50,7 @@ class CategoryE2ETest extends AbstractE2ETest {
             assertThat(created.id()).isNotNull();
             assertThat(created.name()).isEqualTo("cheating");
 
-            // Lesen
+            // Read
             ResponseEntity<CategoryDto> fetched = client().get()
                     .uri("/api/v1/categories/{id}", created.id())
                     .retrieve()
@@ -60,9 +60,9 @@ class CategoryE2ETest extends AbstractE2ETest {
             assertThat(fetched.getBody().name()).isEqualTo("cheating");
             assertThat(fetched.getBody().cooldownSec()).isEqualTo(60L);
 
-            // Ändern - das Mapping ist "/api/v1/categories/" mit Slash am Ende
+            // Update - the mapping is "/api/v1/categories/" with a trailing slash
             CategoryDto update = new CategoryDto(created.id(), "cheating", "Cheating & Hacking",
-                    "Aktualisierte Beschreibung", 300L, true);
+                    "Updated description", 300L, true);
 
             ResponseEntity<CategoryDto> updated = client().patch()
                     .uri("/api/v1/categories/")
@@ -75,14 +75,14 @@ class CategoryE2ETest extends AbstractE2ETest {
             assertThat(updated.getBody().displayName()).isEqualTo("Cheating & Hacking");
             assertThat(updated.getBody().cooldownSec()).isEqualTo(300L);
 
-            // Löschen
+            // Delete
             assertThat(client().delete()
                     .uri("/api/v1/categories/{id}", created.id())
                     .retrieve()
                     .toBodilessEntity()
                     .getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-            // Danach nicht mehr auffindbar
+            // Afterwards it can no longer be found
             assertThat(client().get()
                     .uri("/api/v1/categories/{id}", created.id())
                     .retrieve()
@@ -91,7 +91,7 @@ class CategoryE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("persistiert die Kategorie wirklich in der Datenbank")
+        @DisplayName("really persists the category in the database")
         void shouldPersistAcrossRequests() {
             createCategory("cheating");
 
@@ -106,11 +106,11 @@ class CategoryE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Fehlerfälle")
+    @DisplayName("Error cases")
     class ErrorCases {
 
         @Test
-        @DisplayName("antwortet mit 409 CATEGORY_ALREADY_EXISTS auf eine Namensdublette")
+        @DisplayName("answers 409 CATEGORY_ALREADY_EXISTS for a duplicate name")
         void shouldRejectDuplicateName() {
             createCategory("cheating");
 
@@ -127,7 +127,7 @@ class CategoryE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 CATEGORY_NOT_FOUND für eine unbekannte id")
+        @DisplayName("answers 404 CATEGORY_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() {
             ResponseEntity<ApiErrorResponse> response = client().get()
                     .uri("/api/v1/categories/9999")
@@ -139,7 +139,7 @@ class CategoryE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 beim Löschen einer unbekannten Kategorie")
+        @DisplayName("answers 404 when deleting an unknown category")
         void shouldReturnNotFoundOnDelete() {
             ResponseEntity<ApiErrorResponse> response = client().delete()
                     .uri("/api/v1/categories/9999")
@@ -152,11 +152,11 @@ class CategoryE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Listen und Auswertungen")
+    @DisplayName("Listing and aggregation")
     class Listings {
 
         @Test
-        @DisplayName("liefert alle Kategorien paginiert")
+        @DisplayName("returns every category with pagination")
         void shouldListCategoriesPaged() {
             createCategory("cheating");
             createCategory("griefing");
@@ -174,7 +174,7 @@ class CategoryE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert die Reportanzahl je Kategorie, auch wenn sie null ist")
+        @DisplayName("returns the report count per category, even when it is zero")
         void shouldReturnReportCountsPerCategory() {
             createCategory("cheating");
             createCategory("griefing");
@@ -192,7 +192,7 @@ class CategoryE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert eine leere Liste, solange keine Kategorie aktive Reports hat")
+        @DisplayName("returns an empty list while no category has active reports")
         void shouldReturnNoCategoriesWithActiveReports() {
             createCategory("cheating");
 
@@ -207,7 +207,7 @@ class CategoryE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert eine Kategorie inklusive ihrer (noch leeren) Reports")
+        @DisplayName("returns a category including its (still empty) reports")
         void shouldReturnCategoryWithReports() {
             CategoryDto created = createCategory("cheating");
 

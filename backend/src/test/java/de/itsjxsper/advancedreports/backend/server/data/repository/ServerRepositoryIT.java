@@ -56,24 +56,24 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("Speichern")
+    @DisplayName("Persisting")
     class Persisting {
 
         @Test
-        @DisplayName("übernimmt die mitgegebene Server-UUID unverändert")
+        @DisplayName("keeps the supplied server UUID unchanged")
         void shouldKeepAssignedServerUuid() {
             UUID serverUuid = UUID.randomUUID();
 
             ServerEntity saved = entityManager.persistAndFlush(TestDataFactory.server(serverUuid));
 
-            // ServerEntity hat bewusst kein @GeneratedValue: der Minecraft-Server registriert sich
-            // unter seiner eigenen, konfigurierten UUID, die ServerDto#serverUUID auch @NotNull
-            // mitschickt. Ein Generator würde genau diese UUID beim Persistieren überschreiben.
+            // ServerEntity deliberately has no @GeneratedValue: the Minecraft server registers under
+            // its own configured UUID, which ServerDto#serverUUID also sends as @NotNull. A
+            // generator would overwrite exactly that UUID while persisting.
             assertThat(saved.getServerUuid()).isEqualTo(serverUuid);
         }
 
         @Test
-        @DisplayName("lehnt einen Server ohne UUID ab, weil der Identifier zugewiesen werden muss")
+        @DisplayName("rejects a server without a UUID because the identifier has to be assigned")
         void shouldRejectServerWithoutUuid() {
             ServerEntity server = TestDataFactory.server();
             server.setServerUuid(null);
@@ -83,7 +83,7 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("speichert die IP-Adresse und den Port")
+        @DisplayName("persists the IP address and the port")
         void shouldPersistAddressAndPort() {
             ServerEntity saved = entityManager.persistAndFlush(TestDataFactory.server());
             entityManager.clear();
@@ -98,7 +98,7 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lehnt einen Server ohne Port ab, weil die Spalte nicht nullable ist")
+        @DisplayName("rejects a server without a port because the column is not nullable")
         void shouldRejectServerWithoutPort() {
             ServerEntity server = TestDataFactory.server();
             server.setPort(null);
@@ -108,7 +108,7 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lehnt einen Server ohne IP-Adresse ab, weil die Spalte nicht nullable ist")
+        @DisplayName("rejects a server without an IP address because the column is not nullable")
         void shouldRejectServerWithoutIpAddress() {
             ServerEntity server = TestDataFactory.server();
             server.setIpAddress(null);
@@ -123,7 +123,7 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
     class CountReportsByServerUuid {
 
         @Test
-        @DisplayName("zählt die Reports eines Servers")
+        @DisplayName("counts a server's reports")
         void shouldCountReports() {
             ServerEntity server = persistServerWithReports(3);
             entityManager.clear();
@@ -132,24 +132,24 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert 0 für einen Server ohne Reports")
+        @DisplayName("returns 0 for a server without reports")
         void shouldReturnZeroWithoutReports() {
             ServerEntity server = persistServerWithReports(0);
             entityManager.clear();
 
-            // Der LEFT JOIN in der Query ist genau dafür da - ein INNER JOIN würde hier keine Zeile
-            // liefern und count() käme auf 0, aber ohne diesen Test bliebe das ungeprüft.
+            // The LEFT JOIN in the query exists for exactly this - an INNER JOIN would return no row
+            // here and count() would land on 0, but without this test that would go unchecked.
             assertThat(serverRepository.countReportsByServerUuid(server.getServerUuid())).isZero();
         }
 
         @Test
-        @DisplayName("liefert 0 für eine unbekannte Server-UUID")
+        @DisplayName("returns 0 for an unknown server UUID")
         void shouldReturnZeroForUnknownServer() {
             assertThat(serverRepository.countReportsByServerUuid(UUID.randomUUID())).isZero();
         }
 
         @Test
-        @DisplayName("zählt nur die Reports des angefragten Servers")
+        @DisplayName("counts only the reports of the requested server")
         void shouldNotCountOtherServersReports() {
             ServerEntity first = persistServerWithReports(2);
             persistServerWithReports(5);
@@ -164,7 +164,7 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
     class FindAllOrdered {
 
         @Test
-        @DisplayName("sortiert aufsteigend nach Server-UUID")
+        @DisplayName("sorts ascending by server UUID")
         void shouldSortByUuidAscending() {
             persistServerWithReports(0);
             persistServerWithReports(0);
@@ -174,17 +174,17 @@ class ServerRepositoryIT extends AbstractRepositoryIT {
             var page = serverRepository.findAllByOrderByServerUuidAsc(PageRequest.of(0, 10));
 
             assertThat(page.getContent()).hasSize(3);
-            // Postgres vergleicht den uuid-Typ byteweise, was der lexikografischen Ordnung der
-            // kanonischen Hex-Schreibweise entspricht. UUID#compareTo in Java vergleicht dagegen die
-            // beiden long-Hälften vorzeichenbehaftet und liefert eine andere Reihenfolge - hier muss
-            // also gegen die Ordnung der Datenbank geprüft werden, nicht gegen die von Java.
+            // Postgres compares the uuid type byte by byte, which matches the lexicographic order of
+            // the canonical hex form. UUID#compareTo in Java compares the two long halves as signed
+            // values and yields a different order - so this has to assert against the database's
+            // order, not against Java's.
             assertThat(page.getContent())
                     .extracting(server -> server.getServerUuid().toString())
                     .isSortedAccordingTo(Comparator.naturalOrder());
         }
 
         @Test
-        @DisplayName("respektiert die Seitengröße")
+        @DisplayName("respects the page size")
         void shouldPaginate() {
             persistServerWithReports(0);
             persistServerWithReports(0);

@@ -28,20 +28,20 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
     private TestEntityManager entityManager;
 
     @Nested
-    @DisplayName("Schema-Mapping")
+    @DisplayName("Schema mapping")
     class SchemaMapping {
 
         @Test
-        @DisplayName("liegt als Tabelle player im Standard-Schema")
+        @DisplayName("lives as table player in the default schema")
         void shouldLiveInTheDefaultSchema() {
             entityManager.persistAndFlush(TestDataFactory.player(PLAYER_UUID, "Notch"));
             entityManager.clear();
 
-            // PlayerEntity war einmal das einzige Entity mit einem eigenen Schema
-            // (@Table(schema = "advancedreports")), waehrend die anderen fuenf in "public" lagen.
-            // Genau das erzwang hibernate.hbm2ddl.create_namespaces in den Test-Properties; seit
-            // der Korrektur der Entity-Mappings liegen alle sechs Tabellen im Standard-Schema und
-            // die Property ist dort verschwunden.
+            // PlayerEntity was once the only entity with a schema of its own
+            // (@Table(schema = "advancedreports")), while the other five lived in "public".
+            // That is exactly what forced hibernate.hbm2ddl.create_namespaces in the test properties;
+            // since the entity mappings were corrected all six tables live in the default schema and
+            // the property is gone from there.
             Object count = entityManager.getEntityManager()
                     .createNativeQuery("select count(*) from player")
                     .getSingleResult();
@@ -55,7 +55,7 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
     class FindByPlayerUuid {
 
         @Test
-        @DisplayName("findet einen Spieler über seine UUID")
+        @DisplayName("finds a player by their UUID")
         void shouldFindByUuid() {
             entityManager.persistAndFlush(TestDataFactory.player(PLAYER_UUID, "Notch"));
             entityManager.clear();
@@ -67,7 +67,7 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert ein leeres Optional für eine unbekannte UUID")
+        @DisplayName("returns an empty Optional for an unknown UUID")
         void shouldReturnEmptyForUnknownUuid() {
             assertThat(playerRepository.findByPlayerUuid(UUID.randomUUID())).isEmpty();
         }
@@ -78,7 +78,7 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
     class Constraints {
 
         @Test
-        @DisplayName("lehnt einen Spieler ohne Namen ab, weil die Spalte nicht nullable ist")
+        @DisplayName("rejects a player without a name because the column is not nullable")
         void shouldRejectPlayerWithoutName() {
             PlayerEntity player = TestDataFactory.player(PLAYER_UUID, null);
 
@@ -87,7 +87,7 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("lehnt einen Namen mit mehr als 16 Zeichen ab")
+        @DisplayName("rejects a name longer than 16 characters")
         void shouldRejectTooLongName() {
             PlayerEntity player = TestDataFactory.player(PLAYER_UUID, "EinVielZuLangerSpielername");
 
@@ -96,13 +96,13 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("überschreibt einen Spieler mit gleicher UUID statt ihn zu duplizieren")
+        @DisplayName("overwrites a player with the same UUID instead of duplicating them")
         void shouldTreatUuidAsPrimaryKey() {
             entityManager.persistAndFlush(TestDataFactory.player(PLAYER_UUID, "Notch"));
             entityManager.clear();
 
-            // Die UUID ist der Primärschlüssel und wird zugewiesen, nicht generiert - ein save() mit
-            // derselben UUID ist damit ein Update.
+            // The UUID is the primary key and is assigned, not generated - so a save() with the same
+            // UUID is an update.
             playerRepository.save(TestDataFactory.player(PLAYER_UUID, "Jeb_"));
             entityManager.flush();
             entityManager.clear();
@@ -119,7 +119,7 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
     class DeleteByPlayerUuid {
 
         @Test
-        @DisplayName("löscht den Spieler zur UUID")
+        @DisplayName("deletes the player for the UUID")
         void shouldDeleteByUuid() {
             entityManager.persistAndFlush(TestDataFactory.player(PLAYER_UUID, "Notch"));
 
@@ -132,11 +132,11 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("findAll und count")
+    @DisplayName("findAll and count")
     class ListOperations {
 
         @Test
-        @DisplayName("liefert Spieler paginiert und meldet die Gesamtanzahl")
+        @DisplayName("returns players with pagination and reports the total count")
         void shouldPaginate() {
             entityManager.persist(TestDataFactory.player("Notch"));
             entityManager.persist(TestDataFactory.player("Jeb"));

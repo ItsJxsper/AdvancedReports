@@ -27,11 +27,11 @@ class ScreenshotRepositoryIT extends AbstractRepositoryIT {
     private TestEntityManager entityManager;
 
     @Nested
-    @DisplayName("Speichern")
+    @DisplayName("Persisting")
     class Persisting {
 
         @Test
-        @DisplayName("speichert alle Metadatenfelder")
+        @DisplayName("persists every metadata field")
         void shouldPersistMetadata() {
             ScreenshotEntity saved = entityManager.persistAndFlush(TestDataFactory.screenshot(OBJECT_KEY));
             entityManager.clear();
@@ -49,15 +49,15 @@ class ScreenshotRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("speichert den Upload-Status als Text, nicht als Ordinalzahl")
+        @DisplayName("persists the upload status as text, not as an ordinal")
         void shouldPersistUploadStatusAsString() {
             ScreenshotEntity screenshot = TestDataFactory.screenshot(OBJECT_KEY);
             screenshot.setUploadStatus(UploadStatus.FAILED);
             ScreenshotEntity saved = entityManager.persistAndFlush(screenshot);
             entityManager.clear();
 
-            // @Enumerated(EnumType.STRING) - andernfalls wuerde ein spaeter eingefuegter Enum-Wert
-            // alle bestehenden Zeilen umdeuten.
+            // @Enumerated(EnumType.STRING) - otherwise an enum value inserted later would
+            // reinterpret every existing row.
             Object status = entityManager.getEntityManager()
                     .createNativeQuery("select upload_status from screenshot_entity where id = :id")
                     .setParameter("id", saved.getId())
@@ -67,7 +67,7 @@ class ScreenshotRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("erlaubt Metadaten ganz ohne Object-Key")
+        @DisplayName("allows metadata with no object key at all")
         void shouldAllowMissingObjectKey() {
             ScreenshotEntity screenshot = TestDataFactory.screenshot(null);
 
@@ -82,7 +82,7 @@ class ScreenshotRepositoryIT extends AbstractRepositoryIT {
     class Constraints {
 
         @Test
-        @DisplayName("erzwingt die Unique-Constraint auf dem S3-Object-Key")
+        @DisplayName("enforces the unique constraint on the S3 object key")
         void shouldEnforceUniqueObjectKey() {
             entityManager.persistAndFlush(TestDataFactory.screenshot(OBJECT_KEY));
 
@@ -92,12 +92,12 @@ class ScreenshotRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("erlaubt mehrere Metadatensätze ohne Object-Key")
+        @DisplayName("allows several metadata rows without an object key")
         void shouldAllowMultipleNullObjectKeys() {
             entityManager.persist(TestDataFactory.screenshot(null));
             entityManager.persist(TestDataFactory.screenshot(null));
 
-            // In Postgres kollidieren NULL-Werte in einem Unique-Index nicht.
+            // In Postgres, NULL values do not collide in a unique index.
             entityManager.flush();
 
             assertThat(screenshotRepository.count()).isEqualTo(2);
@@ -105,11 +105,11 @@ class ScreenshotRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("findAll und count")
+    @DisplayName("findAll and count")
     class ListOperations {
 
         @Test
-        @DisplayName("liefert Screenshots paginiert und meldet die Gesamtanzahl")
+        @DisplayName("returns screenshots with pagination and reports the total count")
         void shouldPaginate() {
             entityManager.persist(TestDataFactory.screenshot("screenshots/a.png"));
             entityManager.persist(TestDataFactory.screenshot("screenshots/b.png"));

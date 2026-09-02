@@ -4,8 +4,8 @@ import de.itsjxsper.advancedreports.backend.reports.exceptions.ReportNotFoundExc
 import de.itsjxsper.advancedreports.backend.reports.service.ReportService;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
-import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -40,7 +40,7 @@ class ReportControllerTest {
     private static final UUID HANDLER_UUID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID SERVER_UUID = UUID.fromString("44444444-4444-4444-4444-444444444444");
     private final ReportDto reportDto = new ReportDto(1L, REPORTER_UUID, REPORTED_UUID, 7L,
-            "Verdacht auf Fliegen", SERVER_UUID, "world:100:64:-200", ReportStatus.PENDING,
+            "Suspected of flying", SERVER_UUID, "world:100:64:-200", ReportStatus.PENDING,
             HANDLER_UUID, null, null, Instant.parse("2026-01-01T12:00:00Z"), null);
     private final ReportCreateDto createDto = TestDataFactory.reportCreateDto(
             REPORTER_UUID, REPORTED_UUID, 7L, SERVER_UUID, HANDLER_UUID);
@@ -58,7 +58,7 @@ class ReportControllerTest {
     class GetAllReports {
 
         @Test
-        @DisplayName("liefert 200 mit einer paginierten Liste")
+        @DisplayName("returns 200 with a paginated list")
         void shouldReturnPagedReports() throws Exception {
             when(reportService.getReports(any())).thenReturn(new PageImpl<>(List.of(reportDto)));
 
@@ -70,7 +70,7 @@ class ReportControllerTest {
         }
 
         @Test
-        @DisplayName("nutzt page=0 und size=100 als Voreinstellung")
+        @DisplayName("defaults to page=0 and size=100")
         void shouldUseDefaultPaging() throws Exception {
             when(reportService.getReports(any())).thenReturn(new PageImpl<>(List.of()));
 
@@ -85,7 +85,7 @@ class ReportControllerTest {
     class CreateReport {
 
         @Test
-        @DisplayName("liefert 201 mit dem angelegten Report")
+        @DisplayName("returns 201 with the created report")
         void shouldCreateReport() throws Exception {
             when(reportService.createReport(any())).thenReturn(reportDto);
 
@@ -98,7 +98,7 @@ class ReportControllerTest {
         }
 
         @Test
-        @DisplayName("gibt den Request-Body unverändert an den Service weiter")
+        @DisplayName("passes the request body to the service unchanged")
         void shouldPassBodyToService() throws Exception {
             when(reportService.createReport(any())).thenReturn(reportDto);
 
@@ -116,18 +116,18 @@ class ReportControllerTest {
     class GetReport {
 
         @Test
-        @DisplayName("liefert 200 mit dem Report")
+        @DisplayName("returns 200 with the report")
         void shouldReturnReport() throws Exception {
             when(reportService.getReport(1L)).thenReturn(reportDto);
 
             mockMvc.perform(get("/api/v1/reports/1"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.reason").value("Verdacht auf Fliegen"))
+                    .andExpect(jsonPath("$.reason").value("Suspected of flying"))
                     .andExpect(jsonPath("$.location").value("world:100:64:-200"));
         }
 
         @Test
-        @DisplayName("liefert 404 REPORT_NOT_FOUND für eine unbekannte id")
+        @DisplayName("returns 404 REPORT_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() throws Exception {
             when(reportService.getReport(99L)).thenThrow(new ReportNotFoundException(99L));
 
@@ -143,7 +143,7 @@ class ReportControllerTest {
     class UpdateReport {
 
         @Test
-        @DisplayName("liefert 200 mit dem aktualisierten Report")
+        @DisplayName("returns 200 with the updated report")
         void shouldUpdateReport() throws Exception {
             when(reportService.updateReport(eq(1L), any())).thenReturn(reportDto);
 
@@ -157,7 +157,7 @@ class ReportControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 REPORT_NOT_FOUND für eine unbekannte id")
+        @DisplayName("returns 404 REPORT_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() throws Exception {
             when(reportService.updateReport(eq(99L), any())).thenThrow(new ReportNotFoundException(99L));
 
@@ -174,7 +174,7 @@ class ReportControllerTest {
     class DeleteReport {
 
         @Test
-        @DisplayName("liefert 204 ohne Body")
+        @DisplayName("returns 204 with no body")
         void shouldDeleteReport() throws Exception {
             mockMvc.perform(delete("/api/v1/reports/1"))
                     .andExpect(status().isNoContent())
@@ -184,7 +184,7 @@ class ReportControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 REPORT_NOT_FOUND für eine unbekannte id")
+        @DisplayName("returns 404 REPORT_NOT_FOUND for an unknown id")
         void shouldReturnNotFound() throws Exception {
             doThrow(new ReportNotFoundException(99L)).when(reportService).deleteReport(99L);
 
@@ -199,7 +199,7 @@ class ReportControllerTest {
     class CountReports {
 
         @Test
-        @DisplayName("liefert 200 mit der Gesamtanzahl")
+        @DisplayName("returns 200 with the total count")
         void shouldReturnCount() throws Exception {
             when(reportService.countReports()).thenReturn(42L);
 

@@ -22,8 +22,8 @@ public final class DbFixtures {
         UUID serverUuid = UUID.randomUUID();
 
         try (Connection connection = dataSource.getConnection();
-             // Hibernate mappt InetAddress auf den Postgres-Typ "inet", ein String-Parameter muss
-             // daher explizit gecastet werden.
+             // Hibernate maps InetAddress to the Postgres type "inet", so a String parameter has to
+             // be cast explicitly.
              PreparedStatement statement = connection.prepareStatement(
                      "insert into server_entity (server_uuid, ip_address, port) "
                              + "values (?, cast(? as inet), ?)")) {

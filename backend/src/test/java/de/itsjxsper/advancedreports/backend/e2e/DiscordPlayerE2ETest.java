@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * be created again, and the writing service methods no longer inherit the class-level read-only
  * transaction that silently swallowed every insert.
  */
-@DisplayName("E2E: Discord-Verknüpfung")
+@DisplayName("E2E: Discord link")
 class DiscordPlayerE2ETest extends AbstractE2ETest {
 
     private DiscordPlayerDto linkPayload(UUID playerUuid, Long discordUserId) {
@@ -32,11 +32,11 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Verknüpfen")
+    @DisplayName("Linking")
     class Linking {
 
         @Test
-        @DisplayName("verknüpft einen Spieler mit einem Discord-Account")
+        @DisplayName("links a player to a Discord account")
         void shouldLinkPlayer() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
 
@@ -54,7 +54,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("löst die Verknüpfung über die Spieler-UUID auf")
+        @DisplayName("resolves the link through the player UUID")
         void shouldResolveByPlayerUuid() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
 
@@ -75,7 +75,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("löscht die Verknüpfung, ohne den Spieler zu entfernen")
+        @DisplayName("deletes the link without removing the player")
         void shouldDeleteLinkOnly() {
             PlayerDTO player = ApiFixtures.createPlayer(client(), "Notch");
 
@@ -92,8 +92,8 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
                     .toBodilessEntity()
                     .getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 
-            // Der Spieler muss die Löschung überleben - siehe DiscordPlayerRepositoryIT zum
-            // cascade = ALL / orphanRemoval auf playerEntity.
+            // The player has to survive the deletion - see DiscordPlayerRepositoryIT on
+            // cascade = ALL / orphanRemoval on playerEntity.
             assertThat(client().get()
                     .uri("/api/v1/player/{uuid}", player.playerUUID())
                     .retrieve()
@@ -104,11 +104,11 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Fehlerfälle ohne Tabellenzugriff")
+    @DisplayName("Error cases without table access")
     class ErrorCases {
 
         @Test
-        @DisplayName("antwortet mit 404 PLAYER_NOT_FOUND für eine unbekannte Spieler-UUID")
+        @DisplayName("answers 404 PLAYER_NOT_FOUND for an unknown player UUID")
         void shouldReturnNotFoundForUnknownPlayer() {
             ResponseEntity<ApiErrorResponse> response = client().post()
                     .uri("/api/v1/discord-players")
@@ -117,10 +117,10 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
                     .retrieve()
                     .toEntity(ApiErrorResponse.class);
 
-            // Der Spieler wird vor dem Tabellenzugriff nachgeschlagen, deshalb greift hier noch die
-            // saubere 404-Antwort. Gemeldet wird PLAYER_NOT_FOUND, nicht DISCORD_USER_NOT_FOUND:
-            // fehlt der Minecraft-Spieler, ist das kein Fehler der Discord-Verknüpfung -
-            // DiscordPlayerService wirft dafür bewusst PlayerNotFoundException.
+            // The player is looked up before the table is touched, so the clean 404 response still
+            // applies here. It reports PLAYER_NOT_FOUND, not DISCORD_USER_NOT_FOUND: a missing
+            // Minecraft player is not a failure of the Discord link - DiscordPlayerService
+            // deliberately throws PlayerNotFoundException for it.
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
             assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.PLAYER_NOT_FOUND);
         }

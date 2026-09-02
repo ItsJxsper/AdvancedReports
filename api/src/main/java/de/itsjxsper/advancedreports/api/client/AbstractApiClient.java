@@ -131,7 +131,7 @@ public abstract class AbstractApiClient {
     }
 
     // ---------------------------------------------------------------------
-    // Raw PUT to an absolute URL (z. B. presignte S3-Upload-URLs)
+    // Raw PUT to an absolute URL (e.g. presigned S3 upload URLs)
     // ---------------------------------------------------------------------
 
     /**
@@ -164,7 +164,7 @@ public abstract class AbstractApiClient {
     }
 
     // ---------------------------------------------------------------------
-    // Raw Download (z. B. Screenshot-Bytes)
+    // Raw download (e.g. screenshot bytes)
     // ---------------------------------------------------------------------
 
     protected CompletableFuture<byte[]> downloadAsync(String path, Map<String, String> headers) {

@@ -112,7 +112,7 @@ public class ScreenshotService {
             throw new ScreenshotNotFoundException(screenshotId);
         }
 
-        // Ein erneuter Aufruf nach einem Client-Retry darf nicht erneut ein Event ausloesen.
+        // A repeat call after a client retry must not publish a second event.
         if (screenshotEntity.getUploadStatus() == UploadStatus.SUCCESS) {
             log.debug("Screenshot id={} was already completed", screenshotId);
             return this.screenshotMapper.toScreenshotDto(screenshotEntity);

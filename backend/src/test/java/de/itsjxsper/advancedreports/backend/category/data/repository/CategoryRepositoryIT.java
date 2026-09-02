@@ -52,11 +52,11 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("findByName und existsByName")
+    @DisplayName("findByName and existsByName")
     class FindByName {
 
         @Test
-        @DisplayName("findet eine Kategorie über ihren Namen")
+        @DisplayName("finds a category by its name")
         void shouldFindByName() {
             entityManager.persistAndFlush(TestDataFactory.category("bugs"));
 
@@ -67,13 +67,13 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert ein leeres Optional für einen unbekannten Namen")
+        @DisplayName("returns an empty Optional for an unknown name")
         void shouldReturnEmptyForUnknownName() {
-            assertThat(categoryRepository.findByName("gibt-es-nicht")).isEmpty();
+            assertThat(categoryRepository.findByName("does-not-exist")).isEmpty();
         }
 
         @Test
-        @DisplayName("unterscheidet Groß- und Kleinschreibung")
+        @DisplayName("is case sensitive")
         void shouldBeCaseSensitive() {
             entityManager.persistAndFlush(TestDataFactory.category("bugs"));
 
@@ -81,7 +81,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("existsByName meldet true für einen vorhandenen Namen")
+        @DisplayName("existsByName reports true for an existing name")
         void shouldReportExistence() {
             entityManager.persistAndFlush(TestDataFactory.category("bugs"));
 
@@ -90,7 +90,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("erzwingt die Unique-Constraint auf dem Namen")
+        @DisplayName("enforces the unique constraint on the name")
         void shouldEnforceUniqueName() {
             entityManager.persistAndFlush(TestDataFactory.category("bugs"));
 
@@ -104,7 +104,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
     class FindWithReportsById {
 
         @Test
-        @DisplayName("lädt die Reports über den EntityGraph mit")
+        @DisplayName("loads the reports along through the entity graph")
         void shouldFetchReportsEagerly() {
             CategoryEntity category = persistCategoryWithReports("bugs", 3);
             entityManager.clear();
@@ -112,13 +112,13 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
             var found = categoryRepository.findWithReportsById(category.getId());
 
             assertThat(found).isPresent();
-            // Der @EntityGraph muss die Reports mitladen - ohne ihn waere die Collection lazy und
-            // ausserhalb der Transaktion nicht mehr zugreifbar.
+            // The @EntityGraph has to load the reports along - without it the collection would be lazy
+            // and no longer accessible outside the transaction.
             assertThat(found.get().getReportsEntities()).hasSize(3);
         }
 
         @Test
-        @DisplayName("liefert eine leere Report-Menge für eine Kategorie ohne Reports")
+        @DisplayName("returns an empty report set for a category without reports")
         void shouldReturnEmptyReportsForCategoryWithoutReports() {
             CategoryEntity category = persistCategoryWithReports("bugs", 0);
             entityManager.clear();
@@ -130,7 +130,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert ein leeres Optional für eine unbekannte id")
+        @DisplayName("returns an empty Optional for an unknown id")
         void shouldReturnEmptyForUnknownId() {
             assertThat(categoryRepository.findWithReportsById(9_999L)).isEmpty();
         }
@@ -141,7 +141,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
     class CountReportsPerCategory {
 
         @Test
-        @DisplayName("liefert je Kategorie eine Zeile mit id, Name und Reportanzahl")
+        @DisplayName("returns one row per category with id, name and report count")
         void shouldCountReportsPerCategory() {
             CategoryEntity withReports = persistCategoryWithReports("bugs", 2);
             CategoryEntity withoutReports = persistCategoryWithReports("cheating", 0);
@@ -151,8 +151,8 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
 
             assertThat(rows).hasSize(2);
             assertThat(rows)
-                    .as("Die Projektion muss genau (Long id, String name, Long count) liefern - "
-                            + "CategoryService verlaesst sich beim Cast darauf")
+                    .as("The projection has to return exactly (Long id, String name, Long count) - "
+                            + "CategoryService relies on that when casting")
                     .allSatisfy(row -> {
                         assertThat(row).hasSize(3);
                         assertThat(row[0]).isInstanceOf(Long.class);
@@ -168,7 +168,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert eine leere Liste, wenn keine Kategorie existiert")
+        @DisplayName("returns an empty list when no category exists")
         void shouldReturnEmptyListWithoutCategories() {
             assertThat(categoryRepository.countReportsPerCategory()).isEmpty();
         }
@@ -179,7 +179,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
     class FindCategoriesWithActiveReports {
 
         @Test
-        @DisplayName("liefert nur Kategorien, die mindestens einen Report haben")
+        @DisplayName("returns only categories that have at least one report")
         void shouldOnlyReturnCategoriesWithReports() {
             persistCategoryWithReports("bugs", 1);
             persistCategoryWithReports("cheating", 0);
@@ -191,7 +191,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert jede Kategorie nur einmal, auch bei mehreren Reports")
+        @DisplayName("returns each category only once, even with several reports")
         void shouldReturnDistinctCategories() {
             persistCategoryWithReports("bugs", 3);
             entityManager.clear();
@@ -200,7 +200,7 @@ class CategoryRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert eine leere Liste, wenn keine Reports existieren")
+        @DisplayName("returns an empty list when no reports exist")
         void shouldReturnEmptyListWithoutReports() {
             persistCategoryWithReports("bugs", 0);
             entityManager.clear();

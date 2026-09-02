@@ -6,7 +6,10 @@ import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundExce
 import de.itsjxsper.advancedreports.backend.server.mapper.ServerMapper;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.model.server.ServerDto;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -54,7 +57,7 @@ class ServerServiceTest {
     class CreateServer {
 
         @Test
-        @DisplayName("registriert einen neuen Server")
+        @DisplayName("registers a new server")
         void shouldCreateServer() {
             when(serverMapper.toEntity(serverDto)).thenReturn(serverEntity);
             when(serverRepository.save(serverEntity)).thenReturn(serverEntity);
@@ -72,7 +75,7 @@ class ServerServiceTest {
     class GetServerByUuid {
 
         @Test
-        @DisplayName("liefert den Server zur UUID zurück")
+        @DisplayName("returns the server for the UUID")
         void shouldReturnServer() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.of(serverEntity));
             when(serverMapper.toDto(serverEntity)).thenReturn(serverDto);
@@ -81,7 +84,7 @@ class ServerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
+        @DisplayName("throws ServerNotFoundException when the server does not exist")
         void shouldThrowWhenServerNotFound() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.empty());
 
@@ -96,7 +99,7 @@ class ServerServiceTest {
     class GetAllServers {
 
         @Test
-        @DisplayName("liefert eine nach UUID sortierte, paginierte Liste zurück")
+        @DisplayName("returns a paginated list sorted by UUID")
         void shouldReturnPagedServers() {
             when(serverRepository.findAllByOrderByServerUuidAsc(PageRequest.of(0, 10)))
                     .thenReturn(new PageImpl<>(List.of(serverEntity)));
@@ -114,7 +117,7 @@ class ServerServiceTest {
     class UpdateServer {
 
         @Test
-        @DisplayName("aktualisiert einen bestehenden Server")
+        @DisplayName("updates an existing server")
         void shouldUpdateServer() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.of(serverEntity));
             when(serverMapper.partialUpdate(serverDto, serverEntity)).thenReturn(serverEntity);
@@ -126,7 +129,7 @@ class ServerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
+        @DisplayName("throws ServerNotFoundException when the server does not exist")
         void shouldThrowWhenServerNotFound() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.empty());
 
@@ -142,7 +145,7 @@ class ServerServiceTest {
     class DeleteServer {
 
         @Test
-        @DisplayName("löscht den Server zur UUID")
+        @DisplayName("deletes the server for the UUID")
         void shouldDeleteServer() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.of(serverEntity));
 
@@ -152,7 +155,7 @@ class ServerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
+        @DisplayName("throws ServerNotFoundException when the server does not exist")
         void shouldThrowWhenServerNotFound() {
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.empty());
 
@@ -164,11 +167,11 @@ class ServerServiceTest {
     }
 
     @Nested
-    @DisplayName("countServers und countReportsForServer")
+    @DisplayName("countServers and countReportsForServer")
     class CountOperations {
 
         @Test
-        @DisplayName("gibt die Gesamtanzahl der Server zurück")
+        @DisplayName("returns the total number of servers")
         void shouldCountServers() {
             when(serverRepository.count()).thenReturn(3L);
 
@@ -176,7 +179,7 @@ class ServerServiceTest {
         }
 
         @Test
-        @DisplayName("gibt die Anzahl der Reports eines Servers zurück")
+        @DisplayName("returns the number of reports for a server")
         void shouldCountReportsForServer() {
             when(serverRepository.existsById(SERVER_UUID)).thenReturn(true);
             when(serverRepository.countReportsByServerUuid(SERVER_UUID)).thenReturn(5L);
@@ -185,7 +188,7 @@ class ServerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ServerNotFoundException, wenn der Server nicht existiert")
+        @DisplayName("throws ServerNotFoundException when the server does not exist")
         void shouldThrowWhenCountingReportsForUnknownServer() {
             when(serverRepository.existsById(SERVER_UUID)).thenReturn(false);
 

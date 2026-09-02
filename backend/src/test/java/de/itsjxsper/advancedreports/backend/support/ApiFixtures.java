@@ -34,7 +34,7 @@ public final class ApiFixtures {
                 .toEntity(PlayerDTO.class);
 
         assertThat(response.getStatusCode())
-                .as("Spieler %s konnte nicht angelegt werden", name)
+                .as("Player %s could not be created", name)
                 .isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }
@@ -48,7 +48,7 @@ public final class ApiFixtures {
                 .toEntity(CategoryDto.class);
 
         assertThat(response.getStatusCode())
-                .as("Kategorie %s konnte nicht angelegt werden", name)
+                .as("Category %s could not be created", name)
                 .isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }
@@ -72,7 +72,7 @@ public final class ApiFixtures {
                 .toEntity(ScreenshotDto.class);
 
         assertThat(response.getStatusCode())
-                .as("Screenshot-Metadaten konnten nicht angelegt werden")
+                .as("Screenshot metadata could not be created")
                 .isEqualTo(HttpStatus.CREATED);
         return response.getBody();
     }

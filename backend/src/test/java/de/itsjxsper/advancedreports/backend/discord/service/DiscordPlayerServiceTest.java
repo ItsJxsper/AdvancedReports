@@ -63,7 +63,7 @@ class DiscordPlayerServiceTest {
     class CreateDiscordPlayer {
 
         @Test
-        @DisplayName("verknüpft einen bestehenden Spieler mit einem Discord-Account")
+        @DisplayName("links an existing player to a Discord account")
         void shouldCreateDiscordPlayer() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.of(playerEntity));
             when(discordPlayerMapper.toEntity(discordPlayerDto)).thenReturn(discordPlayerEntity);
@@ -77,7 +77,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft PlayerNotFoundException, wenn der Minecraft-Spieler nicht existiert")
+        @DisplayName("throws PlayerNotFoundException when the Minecraft player does not exist")
         void shouldThrowWhenPlayerMissing() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.empty());
 
@@ -94,7 +94,7 @@ class DiscordPlayerServiceTest {
     class GetById {
 
         @Test
-        @DisplayName("liefert die Verknüpfung zur id zurück")
+        @DisplayName("returns the link for the id")
         void shouldReturnDiscordPlayer() {
             when(discordPlayerRepository.findById(DISCORD_PLAYER_ID))
                     .thenReturn(Optional.of(discordPlayerEntity));
@@ -105,7 +105,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft DiscordUserNotFoundException, wenn die id unbekannt ist")
+        @DisplayName("throws DiscordUserNotFoundException when the id is unknown")
         void shouldThrowWhenNotFound() {
             when(discordPlayerRepository.findById(DISCORD_PLAYER_ID)).thenReturn(Optional.empty());
 
@@ -120,7 +120,7 @@ class DiscordPlayerServiceTest {
     class GetByPlayerUuid {
 
         @Test
-        @DisplayName("liefert die Verknüpfung zur Spieler-UUID zurück")
+        @DisplayName("returns the link for the player UUID")
         void shouldReturnDiscordPlayer() {
             when(discordPlayerRepository.findByPlayerEntity_PlayerUuid(PLAYER_UUID))
                     .thenReturn(Optional.of(discordPlayerEntity));
@@ -131,7 +131,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft DiscordUserNotFoundException, wenn die Spieler-UUID unbekannt ist")
+        @DisplayName("throws DiscordUserNotFoundException when the player UUID is unknown")
         void shouldThrowWhenNotFound() {
             when(discordPlayerRepository.findByPlayerEntity_PlayerUuid(PLAYER_UUID))
                     .thenReturn(Optional.empty());
@@ -147,7 +147,7 @@ class DiscordPlayerServiceTest {
     class UpdateDiscordPlayer {
 
         @Test
-        @DisplayName("aktualisiert die Discord-User-Id")
+        @DisplayName("updates the Discord user id")
         void shouldUpdateDiscordUserId() {
             DiscordPlayerDto update = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, 18L);
 
@@ -161,7 +161,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("lässt die Discord-User-Id unverändert, wenn sie null ist")
+        @DisplayName("leaves the Discord user id unchanged when it is null")
         void shouldKeepDiscordUserIdWhenNull() {
             DiscordPlayerDto update = new DiscordPlayerDto(DISCORD_PLAYER_ID, PLAYER_UUID, null);
 
@@ -176,7 +176,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft DiscordUserNotFoundException, wenn die Verknüpfung nicht existiert")
+        @DisplayName("throws DiscordUserNotFoundException when the link does not exist")
         void shouldThrowWhenNotFound() {
             when(discordPlayerRepository.findById(DISCORD_PLAYER_ID)).thenReturn(Optional.empty());
 
@@ -192,7 +192,7 @@ class DiscordPlayerServiceTest {
     class DeleteById {
 
         @Test
-        @DisplayName("löscht die Verknüpfung zur id")
+        @DisplayName("deletes the link for the id")
         void shouldDelete() {
             when(discordPlayerRepository.findById(DISCORD_PLAYER_ID))
                     .thenReturn(Optional.of(discordPlayerEntity));
@@ -203,7 +203,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft DiscordUserNotFoundException, wenn die id unbekannt ist")
+        @DisplayName("throws DiscordUserNotFoundException when the id is unknown")
         void shouldThrowWhenNotFound() {
             when(discordPlayerRepository.findById(DISCORD_PLAYER_ID)).thenReturn(Optional.empty());
 
@@ -219,7 +219,7 @@ class DiscordPlayerServiceTest {
     class DeleteByPlayerUuid {
 
         @Test
-        @DisplayName("löscht die Verknüpfung zur Spieler-UUID")
+        @DisplayName("deletes the link for the player UUID")
         void shouldDelete() {
             when(discordPlayerRepository.findByPlayerEntity_PlayerUuid(PLAYER_UUID))
                     .thenReturn(Optional.of(discordPlayerEntity));
@@ -230,7 +230,7 @@ class DiscordPlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft DiscordUserNotFoundException, wenn die Spieler-UUID unbekannt ist")
+        @DisplayName("throws DiscordUserNotFoundException when the player UUID is unknown")
         void shouldThrowWhenNotFound() {
             when(discordPlayerRepository.findByPlayerEntity_PlayerUuid(PLAYER_UUID))
                     .thenReturn(Optional.empty());

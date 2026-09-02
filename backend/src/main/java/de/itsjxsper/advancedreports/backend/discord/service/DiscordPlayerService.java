@@ -26,21 +26,21 @@ public class DiscordPlayerService {
     private final DiscordPlayerMapper discordPlayerMapper;
 
 
-    // Ohne eigenes @Transactional erben diese Methoden das readOnly = true der Klasse. Hibernate
-    // setzt darin FlushMode.MANUAL, sodass INSERT/UPDATE/DELETE nie geflusht werden: der Endpunkt
-    // antwortet mit 201 und vollem DTO, gespeichert wird nichts.
+    // Without their own @Transactional these methods inherit the class-level readOnly = true.
+    // Hibernate sets FlushMode.MANUAL there, so INSERT/UPDATE/DELETE are never flushed: the
+    // endpoint answers 201 with a fully populated DTO while persisting nothing.
     @Transactional
     public DiscordPlayerDto createDiscordPlayer(DiscordPlayerDto discordPlayerDto) {
         log.debug("Creating DiscordPlayer with data: {}", discordPlayerDto);
 
         PlayerEntity playerEntity = this.playerRepository.findByPlayerUuid(discordPlayerDto.playerEntityPlayerUUID())
-                // Fehlt der Minecraft-Spieler, ist das kein Discord-Fehler - PlayerNotFoundException
-                // existiert genau dafuer und bildet auf PLAYER_NOT_FOUND ab.
+                // A missing Minecraft player is not a Discord error - PlayerNotFoundException
+                // exists for exactly this and maps to PLAYER_NOT_FOUND.
                 .orElseThrow(() -> new PlayerNotFoundException(discordPlayerDto.playerEntityPlayerUUID()));
 
-        // Bisher gab es hier gar keine Existenzpruefung: der eindeutige Join-Column liess eine
-        // zweite Verknuepfung desselben Spielers als rohe Constraint-Verletzung auflaufen, und
-        // discord_user_id ohne Unique-Constraint erlaubte beliebig viele Spieler pro Discord-Konto.
+        // There used to be no existence check here at all: the unique join column let a second
+        // link for the same player surface as a raw constraint violation, and discord_user_id
+        // without a unique constraint allowed unlimited players per Discord account.
         if (this.discordPlayerRepository.existsByPlayerEntity_PlayerUuid(discordPlayerDto.playerEntityPlayerUUID())) {
             throw new DiscordPlayerAlreadyExistException(discordPlayerDto.playerEntityPlayerUUID());
         }

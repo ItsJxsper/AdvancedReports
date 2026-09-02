@@ -20,10 +20,13 @@ import de.itsjxsper.advancedreports.backend.server.data.repository.ServerReposit
 import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundException;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
-import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
+import de.itsjxsper.advancedreports.common.model.report.ReportDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -104,13 +107,13 @@ class ReportServiceTest {
         reportEntity.setId(REPORT_ID);
 
         reportDto = new ReportDto(REPORT_ID, REPORTER_UUID, REPORTED_UUID, CATEGORY_ID,
-                "Verdacht auf Fliegen", SERVER_UUID, "world:100:64:-200", ReportStatus.PENDING,
+                "Suspected of flying", SERVER_UUID, "world:100:64:-200", ReportStatus.PENDING,
                 HANDLER_UUID, null, null, Instant.now(), null);
     }
 
     /**
-     * Der Service laedt reporter, reported, categoryEntity und handledBy inzwischen selbst aus den
-     * Repositories - vorher blieben das Attrappen aus dem Mapper mit nichts als einer Id.
+     * The service now loads reporter, reported, categoryEntity and handledBy from the repositories
+     * itself - previously those stayed mapper stubs carrying nothing but an id.
      */
     private void stubCoreAssociations() {
         when(playerRepository.findById(REPORTER_UUID)).thenReturn(Optional.of(reporterEntity));
@@ -120,12 +123,12 @@ class ReportServiceTest {
     }
 
     private ReportCreateDto createDto(UUID serverUuid, Long screenshotId) {
-        return new ReportCreateDto(REPORTER_UUID, REPORTED_UUID, CATEGORY_ID, "Verdacht auf Fliegen",
+        return new ReportCreateDto(REPORTER_UUID, REPORTED_UUID, CATEGORY_ID, "Suspected of flying",
                 serverUuid, "world:100:64:-200", ReportStatus.PENDING, HANDLER_UUID, null, screenshotId);
     }
 
     private ReportUpdateDto updateDto(UUID serverUuid, Long screenshotId) {
-        return new ReportUpdateDto(REPORTER_UUID, REPORTED_UUID, CATEGORY_ID, "Verdacht auf Fliegen",
+        return new ReportUpdateDto(REPORTER_UUID, REPORTED_UUID, CATEGORY_ID, "Suspected of flying",
                 serverUuid, "world:100:64:-200", ReportStatus.PENDING, HANDLER_UUID, null, screenshotId);
     }
 
@@ -134,7 +137,7 @@ class ReportServiceTest {
     class CreateReport {
 
         @Test
-        @DisplayName("legt einen Report an und veröffentlicht ein ReportCreatedEvent")
+        @DisplayName("creates a report and publishes a ReportCreatedEvent")
         void shouldCreateReportAndPublishEvent() {
             ReportCreateDto dto = createDto(SERVER_UUID, SCREENSHOT_ID);
 
@@ -166,7 +169,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ServerNotFoundException, wenn der referenzierte Server fehlt")
+        @DisplayName("throws ServerNotFoundException when the referenced server is missing")
         void shouldThrowWhenServerNotFound() {
             ReportCreateDto dto = createDto(SERVER_UUID, null);
 
@@ -183,7 +186,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotNotFoundException, wenn der referenzierte Screenshot fehlt")
+        @DisplayName("throws ScreenshotNotFoundException when the referenced screenshot is missing")
         void shouldThrowWhenScreenshotNotFound() {
             ReportCreateDto dto = createDto(SERVER_UUID, SCREENSHOT_ID);
 
@@ -201,7 +204,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("schlägt keinen Screenshot nach, wenn keine screenshotId übergeben wurde")
+        @DisplayName("does not look up a screenshot when no screenshotId was passed")
         void shouldNotLookUpScreenshotWhenIdAbsent() {
             ReportCreateDto dto = createDto(SERVER_UUID, null);
 
@@ -217,7 +220,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("legt einen Report ohne Server an und veröffentlicht ein Event ohne serverUuid")
+        @DisplayName("creates a report without a server and publishes an event without serverUuid")
         void shouldCreateReportWithoutServer() {
             ReportCreateDto dto = createDto(null, null);
             reportEntity.setServer(null);
@@ -237,7 +240,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("wirft PlayerNotFoundException, wenn der Reporter nicht existiert")
+        @DisplayName("throws PlayerNotFoundException when the reporter does not exist")
         void shouldValidateReporterExists() {
             ReportCreateDto dto = createDto(SERVER_UUID, null);
 
@@ -256,15 +259,15 @@ class ReportServiceTest {
     class UpdateReport {
 
         @Test
-        @DisplayName("aktualisiert einen Report und veröffentlicht ein ReportUpdatedEvent")
+        @DisplayName("updates a report and publishes a ReportUpdatedEvent")
         void shouldUpdateReportAndPublishEvent() {
             ReportUpdateDto dto = updateDto(SERVER_UUID, null);
             reportEntity.setReportStatus(ReportStatus.APPROVED);
 
             when(reportRepository.findById(REPORT_ID)).thenReturn(Optional.of(reportEntity));
             when(reportMapper.partialUpdate(dto, reportEntity)).thenReturn(reportEntity);
-            // Auch beim PATCH werden mitgeschickte Assoziationen frisch geladen, statt die
-            // verwalteten Entities zu ueberschreiben.
+            // On PATCH too, associations that were sent are loaded fresh instead of overwriting the
+            // managed entities.
             stubCoreAssociations();
             when(serverRepository.findById(SERVER_UUID)).thenReturn(Optional.of(serverEntity));
             when(reportRepository.save(reportEntity)).thenReturn(reportEntity);
@@ -289,7 +292,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ReportNotFoundException, wenn der Report nicht existiert")
+        @DisplayName("throws ReportNotFoundException when the report does not exist")
         void shouldThrowWhenReportNotFound() {
             ReportUpdateDto dto = updateDto(SERVER_UUID, null);
             when(reportRepository.findById(REPORT_ID)).thenReturn(Optional.empty());
@@ -308,7 +311,7 @@ class ReportServiceTest {
     class DeleteReport {
 
         @Test
-        @DisplayName("löscht einen bestehenden Report ohne ein Event zu veröffentlichen")
+        @DisplayName("deletes an existing report without publishing an event")
         void shouldDeleteReport() {
             when(reportRepository.findById(REPORT_ID)).thenReturn(Optional.of(reportEntity));
 
@@ -319,7 +322,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ReportNotFoundException, wenn der Report nicht existiert")
+        @DisplayName("throws ReportNotFoundException when the report does not exist")
         void shouldThrowWhenReportNotFound() {
             when(reportRepository.findById(REPORT_ID)).thenReturn(Optional.empty());
 
@@ -331,11 +334,11 @@ class ReportServiceTest {
     }
 
     @Nested
-    @DisplayName("getReport, getReports und countReports")
+    @DisplayName("getReport, getReports and countReports")
     class ReadOperations {
 
         @Test
-        @DisplayName("liefert einen Report zur id zurück")
+        @DisplayName("returns the report for the id")
         void shouldReturnReport() {
             when(reportRepository.findById(REPORT_ID)).thenReturn(Optional.of(reportEntity));
             when(reportMapper.toDto(reportEntity)).thenReturn(reportDto);
@@ -344,7 +347,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ReportNotFoundException, wenn der Report nicht existiert")
+        @DisplayName("throws ReportNotFoundException when the report does not exist")
         void shouldThrowWhenReportNotFound() {
             when(reportRepository.findById(REPORT_ID)).thenReturn(Optional.empty());
 
@@ -353,7 +356,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("liefert Reports absteigend nach Erstellungszeitpunkt sortiert zurück")
+        @DisplayName("returns reports sorted descending by creation time")
         void shouldReturnReportsSortedByCreatedAtDesc() {
             Pageable pageable = PageRequest.of(0, 10);
             when(reportRepository.findAllByOrderByCreatedAtDesc(pageable))
@@ -367,7 +370,7 @@ class ReportServiceTest {
         }
 
         @Test
-        @DisplayName("gibt die Gesamtanzahl der Reports zurück")
+        @DisplayName("returns the total number of reports")
         void shouldCountReports() {
             when(reportRepository.count()).thenReturn(13L);
 

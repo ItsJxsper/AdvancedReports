@@ -48,7 +48,7 @@ public final class TestDataFactory {
         CategoryEntity category = new CategoryEntity();
         category.setName(name);
         category.setDisplayName(name.substring(0, 1).toUpperCase() + name.substring(1));
-        category.setDescription("Beschreibung für " + name);
+        category.setDescription("Description for " + name);
         category.setCooldownSec(60L);
         return category;
     }
@@ -103,7 +103,7 @@ public final class TestDataFactory {
         report.setHandledBy(handledBy);
         report.setCategoryEntity(category);
         report.setServer(server);
-        report.setReason("Verdacht auf Fliegen");
+        report.setReason("Suspected of flying");
         report.setLocation("world:100:64:-200");
         report.setReportStatus(ReportStatus.PENDING);
         report.setHandlerNote(null);
@@ -117,7 +117,7 @@ public final class TestDataFactory {
     }
 
     public static CategoryDto categoryDto(String name) {
-        return new CategoryDto(null, name, "Anzeige " + name, "Beschreibung", 60L, true);
+        return new CategoryDto(null, name, "Display " + name, "Description", 60L, true);
     }
 
     public static ServerDto serverDto(UUID serverUuid) {
@@ -133,7 +133,7 @@ public final class TestDataFactory {
                 reporter,
                 reported,
                 categoryId,
-                "Verdacht auf Fliegen",
+                "Suspected of flying",
                 serverUuid,
                 "world:100:64:-200",
                 ReportStatus.PENDING,
@@ -152,7 +152,7 @@ public final class TestDataFactory {
                 reporter,
                 reported,
                 categoryId,
-                "Verdacht auf Fliegen",
+                "Suspected of flying",
                 serverUuid,
                 "world:100:64:-200",
                 ReportStatus.PENDING,

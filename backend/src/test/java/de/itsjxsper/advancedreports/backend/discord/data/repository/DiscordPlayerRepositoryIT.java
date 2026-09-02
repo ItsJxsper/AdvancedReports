@@ -4,7 +4,6 @@ import de.itsjxsper.advancedreports.backend.discord.data.entity.DiscordPlayerEnt
 import de.itsjxsper.advancedreports.backend.player.data.entity.PlayerEntity;
 import de.itsjxsper.advancedreports.backend.support.AbstractRepositoryIT;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
     class FindByPlayerUuid {
 
         @Test
-        @DisplayName("findet die Verknüpfung über die Spieler-UUID")
+        @DisplayName("finds the link by the player UUID")
         void shouldFindByPlayerUuid() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
             entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 17L));
@@ -49,7 +48,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("liefert ein leeres Optional für eine unbekannte Spieler-UUID")
+        @DisplayName("returns an empty Optional for an unknown player UUID")
         void shouldReturnEmptyForUnknownPlayer() {
             assertThat(discordPlayerRepository.findByPlayerEntity_PlayerUuid(UUID.randomUUID()))
                     .isEmpty();
@@ -61,7 +60,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
     class Constraints {
 
         @Test
-        @DisplayName("erlaubt nur eine Verknüpfung pro Spieler")
+        @DisplayName("allows only one link per player")
         void shouldEnforceOneLinkPerPlayer() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
             entityManager.persistAndFlush(TestDataFactory.discordPlayer(player, 17L));
@@ -72,7 +71,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
         }
 
         @Test
-        @DisplayName("speichert eine echte, 18-stellige Discord-Snowflake in der Datenbank")
+        @DisplayName("persists a real 18-digit Discord snowflake in the database")
         void shouldPersistRealSnowflake() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
 
@@ -87,11 +86,11 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
     }
 
     @Nested
-    @DisplayName("Löschen")
+    @DisplayName("Deleting")
     class Deleting {
 
         @Test
-        @DisplayName("löscht nur die Verknüpfung, nicht den Spieler")
+        @DisplayName("deletes only the link, not the player")
         void shouldNotDeletePlayerWithLink() {
             PlayerEntity player = entityManager.persist(TestDataFactory.player(PLAYER_UUID, "Notch"));
             DiscordPlayerEntity link =
@@ -103,7 +102,7 @@ class DiscordPlayerRepositoryIT extends AbstractRepositoryIT {
 
             assertThat(discordPlayerRepository.findById(link.getId())).isEmpty();
             assertThat(entityManager.find(PlayerEntity.class, PLAYER_UUID))
-                    .as("Der Spieler muss die Löschung seiner Discord-Verknüpfung überleben")
+                    .as("The player has to survive the deletion of their Discord link")
                     .isNotNull();
         }
 

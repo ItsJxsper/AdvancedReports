@@ -27,16 +27,16 @@ public class CategoryEntity {
     @Column(name = "description")
     private String description;
 
-    // Vorher final, weshalb Lombok keinen Setter erzeugte und MapStruct das Feld nicht schreiben
-    // konnte: eine Kategorie war dauerhaft aktiv und CategoryDto#active war faktisch read-only.
+    // Previously final, so Lombok generated no setter and MapStruct could not write the field:
+    // a category was permanently active and CategoryDto#active was effectively read-only.
     @Column(name = "active", nullable = false)
     private Boolean active = true;
-    // Ohne den Type-Code liegt ein Long auf bigint statt auf einer 4-Byte-Spalte.
+    // Without the type code a Long sits on bigint instead of a 4-byte column.
     @Column(name = "cooldown_sec")
     private Long cooldownSec;
-    // Kein orphanRemoval: es haette das Loeschen einer Kategorie zu einem stillen Loeschen aller
-    // zugehoerigen Reports gemacht. reports_entity.category_entity_id ist NOT NULL, ein Abhaengen
-    // ist also nicht moeglich - CategoryService lehnt das Loeschen stattdessen mit 409 ab.
+    // No orphanRemoval: it would have turned deleting a category into a silent deletion of every
+    // report attached to it. reports_entity.category_entity_id is NOT NULL, so detaching is not
+    // possible - CategoryService refuses the deletion with 409 instead.
     @OneToMany(mappedBy = "categoryEntity")
     private Set<ReportsEntity> reportsEntities = new LinkedHashSet<>();
 

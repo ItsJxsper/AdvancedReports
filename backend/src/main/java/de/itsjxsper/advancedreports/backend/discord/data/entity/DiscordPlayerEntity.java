@@ -16,17 +16,17 @@ public class DiscordPlayerEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    // Die Verknuepfung ist die abhaengige Seite und darf den Spieler nicht besitzen. Mit
-    // cascade = ALL + orphanRemoval riss das Loesen einer Discord-Verknuepfung den
-    // Minecraft-Spieler mit - und ueber dessen Reports potenziell noch mehr.
+    // The link is the dependent side and must not own the player. With cascade = ALL +
+    // orphanRemoval, unlinking a Discord account dragged the Minecraft player along with it -
+    // and through that player's reports potentially far more.
     @OneToOne(optional = false)
     @JoinColumn(name = "player_entity_player_uuid", nullable = false, unique = true)
     private PlayerEntity playerEntity;
 
-    // Discord-Snowflakes sind 17-19-stellige Zahlen. @Max(18) hat den *Wert* auf 18 begrenzt und
-    // damit jede echte ID abgelehnt; @JdbcTypeCode(LONG32NVARCHAR) hat die Spalte ausserdem auf
-    // text gelegt, woraus Hibernate einen numerischen CHECK gegen text generiert hat - Postgres
-    // lehnte das DDL ab ("operator does not exist: text <= integer") und die Tabelle entstand nie.
+    // Discord snowflakes are 17-19 digit numbers. @Max(18) capped the *value* at 18 and therefore
+    // rejected every real ID; @JdbcTypeCode(LONG32NVARCHAR) also put the column on text, from which
+    // Hibernate generated a numeric CHECK against text - Postgres refused that DDL
+    // ("operator does not exist: text <= integer") and the table was never created.
     @Digits(integer = 19, fraction = 0)
     @Column(name = "discord_user_id")
     private Long discordUserId;

@@ -7,7 +7,10 @@ import de.itsjxsper.advancedreports.backend.player.exception.PlayerNotFoundExcep
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
 import de.itsjxsper.advancedreports.common.model.player.PlayerUpdateDTO;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
@@ -51,7 +54,7 @@ class PlayerServiceTest {
     class CreatePlayer {
 
         @Test
-        @DisplayName("legt einen neuen Spieler an, wenn die UUID noch nicht existiert")
+        @DisplayName("creates a new player when the UUID does not exist yet")
         void shouldCreatePlayer() {
             PlayerUpdateDTO dto = TestDataFactory.playerUpdateDto(PLAYER_UUID, "Notch");
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.empty());
@@ -69,7 +72,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft PlayerAlreadyExistException, wenn die UUID bereits existiert")
+        @DisplayName("throws PlayerAlreadyExistException when the UUID already exists")
         void shouldThrowWhenPlayerAlreadyExists() {
             PlayerUpdateDTO dto = TestDataFactory.playerUpdateDto(PLAYER_UUID, "Notch");
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.of(playerEntity));
@@ -87,7 +90,7 @@ class PlayerServiceTest {
     class UpdatePlayer {
 
         @Test
-        @DisplayName("aktualisiert den Namen eines bestehenden Spielers")
+        @DisplayName("updates the name of an existing player")
         void shouldUpdatePlayerName() {
             PlayerUpdateDTO dto = TestDataFactory.playerUpdateDto(PLAYER_UUID, "Jeb_");
             PlayerEntity renamed = TestDataFactory.player(PLAYER_UUID, "Jeb_");
@@ -102,7 +105,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft PlayerNotFoundException, wenn der Spieler nicht existiert")
+        @DisplayName("throws PlayerNotFoundException when the player does not exist")
         void shouldThrowWhenPlayerNotFound() {
             PlayerUpdateDTO dto = TestDataFactory.playerUpdateDto(PLAYER_UUID, "Jeb_");
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.empty());
@@ -114,7 +117,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("lässt den bestehenden Namen unverändert, wenn kein Name mitgeschickt wird")
+        @DisplayName("leaves the existing name unchanged when no name is sent")
         void shouldKeepExistingNameWhenNameAbsent() {
             PlayerUpdateDTO dto = new PlayerUpdateDTO(PLAYER_UUID, Optional.empty());
 
@@ -132,7 +135,7 @@ class PlayerServiceTest {
     class DeletePlayer {
 
         @Test
-        @DisplayName("löscht einen bestehenden Spieler")
+        @DisplayName("deletes an existing player")
         void shouldDeletePlayer() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.of(playerEntity));
 
@@ -142,7 +145,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft PlayerNotFoundException, wenn der Spieler nicht existiert")
+        @DisplayName("throws PlayerNotFoundException when the player does not exist")
         void shouldThrowWhenPlayerNotFound() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.empty());
 
@@ -158,7 +161,7 @@ class PlayerServiceTest {
     class GetPlayer {
 
         @Test
-        @DisplayName("liefert den Spieler zur UUID zurück")
+        @DisplayName("returns the player for the UUID")
         void shouldReturnPlayer() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.of(playerEntity));
 
@@ -168,7 +171,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("wirft PlayerNotFoundException, wenn der Spieler nicht existiert")
+        @DisplayName("throws PlayerNotFoundException when the player does not exist")
         void shouldThrowWhenPlayerNotFound() {
             when(playerRepository.findByPlayerUuid(PLAYER_UUID)).thenReturn(Optional.empty());
 
@@ -178,11 +181,11 @@ class PlayerServiceTest {
     }
 
     @Nested
-    @DisplayName("countPlayers und getPlayers")
+    @DisplayName("countPlayers and getPlayers")
     class CountAndList {
 
         @Test
-        @DisplayName("gibt die Gesamtanzahl der Spieler zurück")
+        @DisplayName("returns the total number of players")
         void shouldCountPlayers() {
             when(playerRepository.count()).thenReturn(42L);
 
@@ -190,7 +193,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("liefert eine paginierte Liste von Spielern zurück")
+        @DisplayName("returns a paginated list of players")
         void shouldReturnPagedPlayers() {
             Pageable pageable = PageRequest.of(0, 10);
             Page<PlayerEntity> page = new PageImpl<>(List.of(playerEntity));
@@ -202,7 +205,7 @@ class PlayerServiceTest {
         }
 
         @Test
-        @DisplayName("liefert eine leere Seite, wenn keine Spieler existieren")
+        @DisplayName("returns an empty page when no players exist")
         void shouldReturnEmptyPage() {
             Pageable pageable = PageRequest.of(0, 10);
             when(playerRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of()));

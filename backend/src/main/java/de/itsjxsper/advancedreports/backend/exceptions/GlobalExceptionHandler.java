@@ -55,7 +55,7 @@ import java.util.stream.Stream;
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
-    // --- Framework-Exceptions (ueber ResponseEntityExceptionHandler) ---------------------------
+    // --- Framework exceptions (via ResponseEntityExceptionHandler) -----------------------------
 
     /**
      * Renders the field errors of a failed {@code @Valid} into the message, so a client can tell
@@ -147,7 +147,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ex.getMessage();
     }
 
-    // --- Eigene Exceptions ---------------------------------------------------------------------
+    // --- Own exceptions ------------------------------------------------------------------------
 
     /**
      * More specific than the {@code TypeMismatchException} handler inherited from the base class,
@@ -271,7 +271,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleRateLimitExceededException(RateLimitExceededException e) {
         log.warn("RateLimitExceededException: {}", e.getMessage());
 
-        // Retry-After ist in ganzen Sekunden definiert; alles unter einer Sekunde wird zu 1 aufgerundet
+        // Retry-After is defined in whole seconds; anything below one second rounds up to 1
         long retryAfterSeconds = Math.max(1L, (e.getRetryAfterMs() + 999L) / 1000L);
 
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
