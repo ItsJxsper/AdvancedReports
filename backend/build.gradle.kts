@@ -1,7 +1,7 @@
 plugins {
     java
-    id("org.springframework.boot") version "4.1.0"
-    id("io.spring.dependency-management") version "1.1.7"
+    alias(libs.plugins.spring.boot)
+    alias(libs.plugins.spring.dependency.management)
     jacoco
 }
 
@@ -9,10 +9,10 @@ group = "de.itsjxsper"
 version = "0.0.1-SNAPSHOT"
 description = "backend"
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
+// The toolchain comes from the root subprojects block, which reads it from the version catalog.
+
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
 }
 
 configurations {
@@ -40,38 +40,31 @@ repositories {
 dependencies {
     implementation(project(":common"))
 
-    implementation("org.springframework.boot:spring-boot-starter-amqp")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation(libs.spring.boot.starter.amqp)
+    implementation(libs.spring.boot.starter.data.jpa)
     //implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation(libs.spring.boot.starter.webmvc)
     // Bean Validation used to come in only by accident, through springdoc-openapi.
     // Without an explicit declaration every @Valid silently disappears as soon as
     // the documentation dependency changes.
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
-    implementation("software.amazon.awssdk:s3:2.42.35")
-    implementation("org.mapstruct:mapstruct:1.6.3")
-    implementation("com.bucket4j:bucket4j-redis:8.10.1")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation(libs.spring.boot.starter.validation)
+    implementation(libs.springdoc.openapi.starter.webmvc.ui)
+    implementation(libs.aws.sdk.s3)
+    implementation(libs.mapstruct)
+    implementation(libs.bucket4j.redis)
+    implementation(libs.spring.boot.starter.data.redis)
+    implementation(libs.spring.boot.starter.actuator)
     // The application talks to PostgreSQL but shipped without a JDBC driver, so the
     // datasource could never be created. Required at runtime, not just in tests.
-    runtimeOnly("org.postgresql:postgresql")
-    compileOnly("org.projectlombok:lombok")
-    developmentOnly("org.springframework.boot:spring-boot-docker-compose")
-    annotationProcessor("org.projectlombok:lombok")
-    annotationProcessor("org.mapstruct:mapstruct-processor:1.6.3")
-    testImplementation("org.springframework.boot:spring-boot-starter-amqp-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+    runtimeOnly(libs.postgresql)
+    compileOnly(libs.lombok)
+    developmentOnly(libs.spring.boot.docker.compose)
+    annotationProcessor(libs.lombok)
+    annotationProcessor(libs.mapstruct.processor)
+    testImplementation(libs.bundles.spring.boot.test)
     //testImplementation("org.springframework.boot:spring-boot-starter-security-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
-    testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
-    testImplementation("org.testcontainers:testcontainers-rabbitmq")
-    testImplementation("org.testcontainers:testcontainers-postgresql")
-    testImplementation("org.testcontainers:testcontainers-minio")
-    testImplementation("com.redis:testcontainers-redis")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation(libs.bundles.testcontainers)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 tasks.withType<Test>().configureEach {

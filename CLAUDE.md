@@ -33,8 +33,13 @@ Note the README describes MongoDB in the features table, but the backend and `do
 
 Module versions are set per-module via each module's `gradle.properties` (`moduleVersion=...`), read by the root
 `build.gradle.kts` and applied to that module's `version`. Dependency versions/plugins are centralized in
-`gradle/libs.versions.toml` (version catalog, referenced as `libs.xxx`); `backend` mixes in plain string-coordinate
-dependencies not yet in the catalog.
+`gradle/libs.versions.toml` (version catalog, referenced as `libs.xxx`) — every module declares every dependency and
+every non-core plugin through it, so a version is only ever changed in the catalog. Java toolchains (`java`,
+`proxy-java`) live there too. The Spring dependencies in `backend` are declared *without* a version, on purpose: the
+Spring Boot BOM applied by `io.spring.dependency-management` is their single source of truth, so removing that plugin
+would leave them unresolvable. Bundles group the Testcontainers set (`libs.bundles.testcontainers`) and the Boot test
+slices (`libs.bundles.spring.boot.test`). Note that `libs` is unavailable inside the root `subprojects {}` block — read
+catalog values into a local `val` above it instead.
 
 GitHub Packages (`maven.pkg.github.com/ItsJxsper/advancedreports`) is used both as a dependency source (for `common`)
 and a publish target; credentials come from `gpr.user`/`gpr.token` Gradle properties or `GITHUB_ACTOR`/`GITHUB_TOKEN`

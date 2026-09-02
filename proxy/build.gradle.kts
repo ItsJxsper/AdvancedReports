@@ -13,8 +13,9 @@ dependencies {
     compileOnly(libs.velocity.api)
 }
 
+// Overrides the 25 that the root subprojects block sets: Velocity targets 21.
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(libs.versions.proxy.java.get().toInt())
 }
 
 tasks {
