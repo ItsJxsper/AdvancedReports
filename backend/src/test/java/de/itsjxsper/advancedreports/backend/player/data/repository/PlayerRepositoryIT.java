@@ -32,15 +32,18 @@ class PlayerRepositoryIT extends AbstractRepositoryIT {
     class SchemaMapping {
 
         @Test
-        @DisplayName("liegt im Schema advancedreports und ist dort erreichbar")
-        void shouldLiveInAdvancedreportsSchema() {
+        @DisplayName("liegt als Tabelle player im Standard-Schema")
+        void shouldLiveInTheDefaultSchema() {
             entityManager.persistAndFlush(TestDataFactory.player(PLAYER_UUID, "Notch"));
             entityManager.clear();
 
-            // PlayerEntity ist das einzige Entity mit einem eigenen Schema
-            // (@Table(schema = "advancedreports")); alle anderen liegen in "public".
+            // PlayerEntity war einmal das einzige Entity mit einem eigenen Schema
+            // (@Table(schema = "advancedreports")), waehrend die anderen fuenf in "public" lagen.
+            // Genau das erzwang hibernate.hbm2ddl.create_namespaces in den Test-Properties; seit
+            // der Korrektur der Entity-Mappings liegen alle sechs Tabellen im Standard-Schema und
+            // die Property ist dort verschwunden.
             Object count = entityManager.getEntityManager()
-                    .createNativeQuery("select count(*) from advancedreports.player")
+                    .createNativeQuery("select count(*) from player")
                     .getSingleResult();
 
             assertThat(((Number) count).intValue()).isEqualTo(1);

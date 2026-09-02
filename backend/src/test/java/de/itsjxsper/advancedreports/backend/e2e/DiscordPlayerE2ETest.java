@@ -1,12 +1,11 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.ApiFixtures;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
 import de.itsjxsper.advancedreports.common.model.discord.DiscordPlayerDto;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.common.model.player.PlayerDTO;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -109,7 +108,7 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
     class ErrorCases {
 
         @Test
-        @DisplayName("antwortet mit 404 DISCORD_USER_NOT_FOUND für eine unbekannte Spieler-UUID")
+        @DisplayName("antwortet mit 404 PLAYER_NOT_FOUND für eine unbekannte Spieler-UUID")
         void shouldReturnNotFoundForUnknownPlayer() {
             ResponseEntity<ApiErrorResponse> response = client().post()
                     .uri("/api/v1/discord-players")
@@ -119,9 +118,11 @@ class DiscordPlayerE2ETest extends AbstractE2ETest {
                     .toEntity(ApiErrorResponse.class);
 
             // Der Spieler wird vor dem Tabellenzugriff nachgeschlagen, deshalb greift hier noch die
-            // saubere 404-Antwort.
+            // saubere 404-Antwort. Gemeldet wird PLAYER_NOT_FOUND, nicht DISCORD_USER_NOT_FOUND:
+            // fehlt der Minecraft-Spieler, ist das kein Fehler der Discord-Verknüpfung -
+            // DiscordPlayerService wirft dafür bewusst PlayerNotFoundException.
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.DISCORD_USER_NOT_FOUND);
+            assertThat(response.getBody().code()).isEqualTo(ApiErrorCode.PLAYER_NOT_FOUND);
         }
     }
 }
