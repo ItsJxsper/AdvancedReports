@@ -48,7 +48,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     private static final byte[] PNG_BYTES = "not-a-real-png-but-good-enough".getBytes(StandardCharsets.UTF_8);
 
     /**
-     * java.net.http verwaltet diese Header selbst und wirft, wenn man sie setzt.
+     * java.net.http manages these headers itself and throws when you set them.
      */
     private static final Set<String> RESTRICTED_HEADERS =
             Set.of("host", "content-length", "connection", "expect", "upgrade");
@@ -142,7 +142,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     class Upload {
 
         @Test
-        @DisplayName("reserviert die Metadaten als PENDING und gibt eine presignte Upload-URL zurück")
+        @DisplayName("reserves the metadata as PENDING and returns a presigned upload URL")
         void shouldReserveMetadataAsPending() {
             ResponseEntity<ScreenshotUploadUrlDto> response = client().post()
                     .uri("/api/v1/screenshots/upload-url")
@@ -159,31 +159,31 @@ class ScreenshotE2ETest extends AbstractE2ETest {
             assertThat(uploadUrl.uploadStatus()).isEqualTo(UploadStatus.PENDING);
             assertThat(uploadUrl.expiresAt()).isNotNull();
             assertThat(uploadUrl.uploadUrl())
-                    .as("Die URL zeigt direkt auf MinIO, nicht auf das Backend")
+                    .as("The URL points straight at MinIO, not at the backend")
                     .startsWith(ContainerSupport.MINIO.getS3URL())
                     .contains("X-Amz-Signature");
             assertThat(uploadUrl.s3ObjectKey())
                     .matches("screenshots/\\d{4}-\\d{2}-\\d{2}/[0-9a-f-]{36}-screenshot\\.png");
 
             assertThat(objectExists(uploadUrl.s3ObjectKey()))
-                    .as("Vor dem Upload darf noch kein Objekt im Bucket liegen")
+                    .as("Before the upload there must be no object in the bucket yet")
                     .isFalse();
         }
 
         @Test
-        @DisplayName("lädt die Datei über die presignte URL direkt in den Bucket")
+        @DisplayName("uploads the file straight into the bucket through the presigned URL")
         void shouldUploadFileToBucketViaPresignedUrl() {
             ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
 
             assertThat(putToPresignedUrl(uploadUrl, PNG_BYTES).statusCode()).isEqualTo(200);
 
             assertThat(objectExists(uploadUrl.s3ObjectKey()))
-                    .as("Das Objekt muss wirklich im Bucket liegen, ohne dass das Backend die Bytes gesehen hat")
+                    .as("The object has to really be in the bucket without the backend having seen the bytes")
                     .isTrue();
         }
 
         @Test
-        @DisplayName("bestätigt den Upload und übernimmt die tatsächliche Größe aus S3")
+        @DisplayName("confirms the upload and takes the actual size from S3")
         void shouldCompleteUploadWithRealMetadata() {
             ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
             putToPresignedUrl(uploadUrl, PNG_BYTES);
@@ -202,7 +202,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert die S3-URL des hochgeladenen Bildes zurück")
+        @DisplayName("returns the S3 URL of the uploaded image")
         void shouldReturnStorageUri() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
@@ -210,7 +210,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("entschärft Sonderzeichen im Dateinamen für den Object-Key")
+        @DisplayName("sanitises special characters in the file name for the object key")
         void shouldSanitizeFilename() {
             ScreenshotDto uploaded = upload("Böse Datei!.PNG", PNG_BYTES);
 
@@ -219,7 +219,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("lehnt eine Dateigröße von null ab")
+        @DisplayName("rejects a file size of zero")
         void shouldRejectEmptyFile() {
             ResponseEntity<ApiErrorResponse> response = client().post()
                     .uri("/api/v1/screenshots/upload-url")
@@ -233,7 +233,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("lehnt Dateien oberhalb des konfigurierten Maximums ab")
+        @DisplayName("rejects files above the configured maximum")
         void shouldRejectOversizedFile() {
             ResponseEntity<ApiErrorResponse> response = client().post()
                     .uri("/api/v1/screenshots/upload-url")
@@ -247,7 +247,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 409 SCREENSHOT_UPLOAD_INCOMPLETE, wenn nie hochgeladen wurde")
+        @DisplayName("answers 409 SCREENSHOT_UPLOAD_INCOMPLETE when nothing was ever uploaded")
         void shouldRejectCompletionWithoutUpload() {
             ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
 
@@ -265,12 +265,12 @@ class ScreenshotE2ETest extends AbstractE2ETest {
                     .toEntity(ScreenshotDto.class);
 
             assertThat(metadata.getBody().uploadStatus())
-                    .as("Der fehlgeschlagene Upload muss als FAILED erkennbar bleiben")
+                    .as("The failed upload has to stay recognisable as FAILED")
                     .isEqualTo(UploadStatus.FAILED);
         }
 
         @Test
-        @DisplayName("ist idempotent, wenn der Client die Bestätigung wiederholt")
+        @DisplayName("is idempotent when the client repeats the confirmation")
         void shouldBeIdempotent() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
@@ -281,7 +281,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND, wenn die id unbekannt ist")
+        @DisplayName("answers 404 SCREENSHOT_NOT_FOUND when the id is unknown")
         void shouldReturnNotFoundForUnknownId() {
             ResponseEntity<ApiErrorResponse> response = client().post()
                     .uri("/api/v1/screenshots/9999/complete")
@@ -298,7 +298,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     class Download {
 
         @Test
-        @DisplayName("liefert eine presignte URL, über die die Bytes unverändert zurückkommen")
+        @DisplayName("returns a presigned URL through which the bytes come back unchanged")
         void shouldDownloadUploadedBytesViaPresignedUrl() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
@@ -326,7 +326,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("leitet /download mit 302 auf die presignte S3-URL um")
+        @DisplayName("redirects /download with 302 to the presigned S3 URL")
         void shouldRedirectToPresignedUrl() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
@@ -339,12 +339,12 @@ class ScreenshotE2ETest extends AbstractE2ETest {
                             .startsWith(ContainerSupport.MINIO.getS3URL())
                             .contains("X-Amz-Signature"));
             assertThat(response.body())
-                    .as("Das Backend reicht keine Bytes mehr durch")
+                    .as("The backend no longer proxies any bytes")
                     .isEmpty();
         }
 
         @Test
-        @DisplayName("antwortet mit 404 SCREENSHOT_NOT_FOUND für eine unbekannte id")
+        @DisplayName("answers 404 SCREENSHOT_NOT_FOUND for an unknown id")
         void shouldReturnNotFoundForUnknownId() {
             ResponseEntity<ApiErrorResponse> response = client().get()
                     .uri("/api/v1/screenshots/9999/download-url")
@@ -356,7 +356,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 409 SCREENSHOT_UPLOAD_INCOMPLETE, solange der Upload PENDING ist")
+        @DisplayName("answers 409 SCREENSHOT_UPLOAD_INCOMPLETE while the upload is PENDING")
         void shouldReturnConflictWhilePending() {
             ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
 
@@ -370,10 +370,10 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("gibt eine URL aus, die 404 liefert, wenn das Objekt im Bucket fehlt")
+        @DisplayName("hands out a URL that returns 404 when the object is missing from the bucket")
         void shouldPresignUrlThatFailsWhenObjectMissing() {
-            // Metadaten ohne zugehoeriges Objekt - genau der Zustand nach einem manuell im Bucket
-            // geloeschten Screenshot. Das Backend signiert weiter, S3 lehnt beim Abruf ab.
+            // Metadata without a matching object - exactly the state after a screenshot was deleted
+            // manually in the bucket. The backend keeps signing, S3 refuses on retrieval.
             ScreenshotDto orphan = ApiFixtures.createScreenshot(client());
 
             ResponseEntity<ScreenshotDownloadUrlDto> response = client().get()
@@ -387,11 +387,11 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Metadaten und Löschen")
+    @DisplayName("Metadata and deletion")
     class MetadataAndDeletion {
 
         @Test
-        @DisplayName("liest die Metadaten eines hochgeladenen Screenshots")
+        @DisplayName("reads the metadata of an uploaded screenshot")
         void shouldReadMetadata() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
@@ -405,7 +405,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("ändert die Metadaten eines Screenshots")
+        @DisplayName("updates a screenshot's metadata")
         void shouldUpdateMetadata() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
 
@@ -421,12 +421,12 @@ class ScreenshotE2ETest extends AbstractE2ETest {
             assertThat(response.getBody().originalFilename()).isEqualTo("umbenannt.png");
             assertThat(response.getBody().uploadStatus()).isEqualTo(UploadStatus.FAILED);
             assertThat(response.getBody().s3ObjectKey())
-                    .as("Der Object-Key darf von einem Teil-Update nicht verloren gehen")
+                    .as("The object key must not be lost by a partial update")
                     .isEqualTo(uploaded.s3ObjectKey());
         }
 
         @Test
-        @DisplayName("löscht Metadaten und Objekt im Bucket")
+        @DisplayName("deletes both the metadata and the object in the bucket")
         void shouldDeleteMetadataAndObject() {
             ScreenshotDto uploaded = upload("screenshot.png", PNG_BYTES);
             assertThat(objectExists(uploaded.s3ObjectKey())).isTrue();
@@ -444,12 +444,12 @@ class ScreenshotE2ETest extends AbstractE2ETest {
                     .getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
 
             assertThat(objectExists(uploaded.s3ObjectKey()))
-                    .as("Das Objekt muss auch im Bucket verschwinden, sonst bleibt Datenmüll liegen")
+                    .as("The object has to disappear from the bucket too, otherwise garbage is left behind")
                     .isFalse();
         }
 
         @Test
-        @DisplayName("zählt die gespeicherten Screenshots")
+        @DisplayName("counts the persisted screenshots")
         void shouldCountScreenshots() {
             upload("a.png", PNG_BYTES);
             upload("b.png", PNG_BYTES);
@@ -464,7 +464,7 @@ class ScreenshotE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("listet Screenshots paginiert")
+        @DisplayName("lists screenshots with pagination")
         void shouldListScreenshotsPaged() {
             upload("a.png", PNG_BYTES);
             upload("b.png", PNG_BYTES);
@@ -481,13 +481,13 @@ class ScreenshotE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Bucket-Interaktion")
+    @DisplayName("Bucket interaction")
     class BucketInteraction {
 
         @Test
-        @DisplayName("bestätigt ein Objekt, das direkt in den Bucket gelegt wurde")
+        @DisplayName("confirms an object that was put straight into the bucket")
         void shouldCompleteObjectPutDirectly() {
-            // Beweist, dass die Bestaetigung wirklich gegen S3 prueft und nicht dem Client glaubt.
+            // Proves the confirmation really checks against S3 instead of trusting the client.
             ScreenshotUploadUrlDto uploadUrl = requestUploadUrl("screenshot.png", PNG_BYTES.length);
             byte[] content = "direkt-in-den-bucket".getBytes(StandardCharsets.UTF_8);
 
@@ -506,18 +506,18 @@ class ScreenshotE2ETest extends AbstractE2ETest {
             ScreenshotDto completed = response.getBody();
             assertThat(completed.uploadStatus()).isEqualTo(UploadStatus.SUCCESS);
             assertThat(completed.fileSizeBytes())
-                    .as("Die tatsaechliche Groesse aus S3 ersetzt die vom Client angekuendigte")
+                    .as("The actual size from S3 replaces the one announced by the client")
                     .isEqualTo(content.length);
         }
 
         @Test
-        @DisplayName("meldet einen Fehler, wenn der Bucket-Zugriff für ein fehlendes Objekt scheitert")
+        @DisplayName("reports an error when bucket access fails for a missing object")
         void shouldFailForMissingObject() {
             assertThatThrownBy(() -> {
                 try (S3Client s3 = ContainerSupport.s3Client()) {
                     s3.getObjectAsBytes(builder -> builder
                             .bucket(ContainerSupport.S3_BUCKET)
-                            .key("screenshots/gibt-es/nicht.png"));
+                            .key("screenshots/does-not/exist.png"));
                 }
             }).isInstanceOf(NoSuchKeyException.class);
         }

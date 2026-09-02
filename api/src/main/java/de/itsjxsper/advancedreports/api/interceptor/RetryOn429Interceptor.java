@@ -59,7 +59,7 @@ public class RetryOn429Interceptor implements Interceptor {
             try {
                 return Long.parseLong(retryAfterHeader.trim()) * 1000L;
             } catch (NumberFormatException ignored) {
-                // Kein numerischer Wert (z. B. HTTP-Date-Format) -> Fallback verwenden
+                // Not a numeric value (e.g. HTTP-date format) -> use the fallback
             }
         }
 

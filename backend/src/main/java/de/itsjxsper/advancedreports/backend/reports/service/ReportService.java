@@ -19,9 +19,9 @@ import de.itsjxsper.advancedreports.backend.screenshot.exceptions.ScreenshotNotF
 import de.itsjxsper.advancedreports.backend.server.data.entity.ServerEntity;
 import de.itsjxsper.advancedreports.backend.server.data.repository.ServerRepository;
 import de.itsjxsper.advancedreports.backend.server.exceptions.ServerNotFoundException;
+import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportCreateDto;
 import de.itsjxsper.advancedreports.common.model.report.ReportDto;
-import de.itsjxsper.advancedreports.common.enums.report.ReportStatus;
 import de.itsjxsper.advancedreports.common.model.report.ReportUpdateDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,14 +54,14 @@ public class ReportService {
 
         var reportEntity = this.reportMapper.toEntity(reportCreateDto);
 
-        // Ein frisch eingegangener Report ist PENDING - der Client muss das nicht mitschicken.
+        // A freshly filed report is PENDING - the client does not have to send that.
         if (reportEntity.getReportStatus() == null) {
             reportEntity.setReportStatus(ReportStatus.PENDING);
         }
 
-        // Frueher wurden nur server und screenshot aufgeloest; reporter, reported, categoryEntity und
-        // handledBy blieben Mapper-Attrappen mit gesetzter ID. Eine unbekannte Spieler- oder
-        // Kategorie-ID lief damit in eine FK-Verletzung statt in ein sauberes 404.
+        // Only server and screenshot used to be resolved; reporter, reported, categoryEntity and
+        // handledBy stayed mapper stubs carrying nothing but an id. An unknown player or category
+        // id therefore surfaced as an FK violation instead of a clean 404.
         reportEntity.setReporter(requirePlayer(reportCreateDto.reporterUUID()));
         reportEntity.setReported(requirePlayer(reportCreateDto.reportedUUID()));
         reportEntity.setCategoryEntity(requireCategory(reportCreateDto.categoryId()));
@@ -72,8 +72,8 @@ public class ReportService {
         ReportsEntity savedEntity = this.reportRepository.save(reportEntity);
         log.debug("Created report with id={}", savedEntity.getId());
 
-        // getServer() ist optional - der direkte Zugriff hat hier fuer jeden Report ohne Server eine
-        // NPE geworfen, nachdem die Zeile bereits geschrieben war.
+        // getServer() is optional - accessing it directly threw an NPE for every report without a
+        // server, after the row had already been written.
         this.rabbitTemplate.convertAndSend(
                 RabbitMQConfiguration.EXCHANGE,
                 "",
@@ -95,8 +95,8 @@ public class ReportService {
 
         reportEntity = this.reportMapper.partialUpdate(reportUpdateDto, reportEntity);
 
-        // Assoziationen nur anfassen, wenn sie tatsaechlich mitgeschickt wurden - der Mapper laesst
-        // sie bewusst in Ruhe, statt die geladenen Entities zu ueberschreiben.
+        // Only touch associations that were actually sent - the mapper deliberately leaves them
+        // alone instead of overwriting the loaded entities.
         if (reportUpdateDto.reporterUUID() != null) {
             reportEntity.setReporter(requirePlayer(reportUpdateDto.reporterUUID()));
         }

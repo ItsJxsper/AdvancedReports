@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code api} client, the Paper plugin and the Discord bot will use. If the backend ever changes the
  * shape of its error responses, this is where it shows up.
  */
-@DisplayName("E2E: Fehler-Vertrag mit dem common-Modul")
+@DisplayName("E2E: error contract with the common module")
 class ErrorContractE2ETest extends AbstractE2ETest {
 
     /**
@@ -41,11 +41,11 @@ class ErrorContractE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("404-Antworten")
+    @DisplayName("404 responses")
     class NotFoundResponses {
 
         @Test
-        @DisplayName("ein unbekannter Report wird clientseitig als NotFound erkannt")
+        @DisplayName("an unknown report is recognised as NotFound on the client side")
         void shouldParseReportNotFound() {
             ApiException exception = callAndParse("/api/v1/reports/9999");
 
@@ -57,7 +57,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("eine unbekannte Kategorie wird clientseitig als NotFound erkannt")
+        @DisplayName("an unknown category is recognised as NotFound on the client side")
         void shouldParseCategoryNotFound() {
             ApiException exception = callAndParse("/api/v1/categories/9999");
 
@@ -66,7 +66,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("ein unbekannter Spieler wird clientseitig als NotFound erkannt")
+        @DisplayName("an unknown player is recognised as NotFound on the client side")
         void shouldParsePlayerNotFound() {
             ApiException exception = callAndParse("/api/v1/player/" + UUID.randomUUID());
 
@@ -75,7 +75,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("ein unbekannter Server wird clientseitig als NotFound erkannt")
+        @DisplayName("an unknown server is recognised as NotFound on the client side")
         void shouldParseServerNotFound() {
             ApiException exception = callAndParse("/api/v1/servers/" + UUID.randomUUID());
 
@@ -84,7 +84,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("ein unbekannter Screenshot wird clientseitig als NotFound erkannt")
+        @DisplayName("an unknown screenshot is recognised as NotFound on the client side")
         void shouldParseScreenshotNotFound() {
             ApiException exception = callAndParse("/api/v1/screenshots/9999");
 
@@ -93,7 +93,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("eine unbekannte Discord-Verknüpfung wird clientseitig als NotFound erkannt")
+        @DisplayName("an unknown Discord link is recognised as NotFound on the client side")
         void shouldParseDiscordUserNotFound() {
             ApiException exception = callAndParse("/api/v1/discord-players/9999");
 
@@ -103,11 +103,11 @@ class ErrorContractE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Weitere Statuscodes")
+    @DisplayName("Further status codes")
     class OtherStatusCodes {
 
         @Test
-        @DisplayName("ein fehlender Header wird als MISSING_HEADER geliefert")
+        @DisplayName("a missing header is reported as MISSING_HEADER")
         void shouldParseMissingHeader() {
             ResponseEntity<String> response = clientBuilder().build().get()
                     .uri("/api/v1/categories/count")
@@ -124,7 +124,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("eine Namensdublette wird als CATEGORY_ALREADY_EXISTS geliefert")
+        @DisplayName("a duplicate name is reported as CATEGORY_ALREADY_EXISTS")
         void shouldParseConflict() {
             de.itsjxsper.advancedreports.backend.support.ApiFixtures.createCategory(client(), "cheating");
 
@@ -145,7 +145,7 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("ein nie hochgeladener Screenshot wird als SCREENSHOT_UPLOAD_INCOMPLETE geliefert")
+        @DisplayName("a screenshot that was never uploaded is reported as SCREENSHOT_UPLOAD_INCOMPLETE")
         void shouldParseScreenshotUploadIncomplete() {
             var uploadUrl = client().post()
                     .uri("/api/v1/screenshots/upload-url")
@@ -172,11 +172,11 @@ class ErrorContractE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("JSON-Form")
+    @DisplayName("JSON shape")
     class JsonShape {
 
         @Test
-        @DisplayName("besteht aus genau den Feldern status, code und message")
+        @DisplayName("consists of exactly the fields status, code and message")
         void shouldContainExactlyThreeFields() throws Exception {
             ResponseEntity<String> response = client().get()
                     .uri("/api/v1/reports/9999")
@@ -192,15 +192,15 @@ class ErrorContractE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert den Fehlercode als Text, nicht als Zahl")
+        @DisplayName("returns the error code as text, not as a number")
         void shouldSerialiseErrorCodeAsString() throws Exception {
             ResponseEntity<String> response = client().get()
                     .uri("/api/v1/reports/9999")
                     .retrieve()
                     .toEntity(String.class);
 
-            // Als Ordinalzahl waere der Vertrag brüchig: ein neuer Enum-Wert in der Mitte würde
-            // sämtliche bestehenden Codes verschieben.
+            // As an ordinal the contract would be brittle: a new enum value in the middle would
+            // shift every existing code.
             assertThat(OBJECT_MAPPER.readTree(response.getBody()).get("code").isTextual()).isTrue();
         }
     }

@@ -44,9 +44,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     //implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
-    // Bean Validation kam bisher nur zufaellig ueber springdoc-openapi herein.
-    // Ohne explizite Deklaration verschwindet jedes @Valid still, sobald sich
-    // die Doku-Abhaengigkeit aendert.
+    // Bean Validation used to come in only by accident, through springdoc-openapi.
+    // Without an explicit declaration every @Valid silently disappears as soon as
+    // the documentation dependency changes.
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2")
     implementation("software.amazon.awssdk:s3:2.42.35")
@@ -77,10 +77,10 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 
-    // Mockito braucht ab JDK 21 den Agent explizit. Die Aufloesung muss lazy bleiben:
-    // ein direktes configurations.testRuntimeClasspath.get().files loest die Konfiguration
-    // bereits in der Konfigurationsphase auf - bei JEDEM Aufruf, auch bei 'build -x test'
-    // und 'bootBuildImage' - und verhindert ausserdem den Configuration Cache.
+    // From JDK 21 on, Mockito needs the agent declared explicitly. Resolution has to stay lazy:
+    // a direct configurations.testRuntimeClasspath.get().files resolves the configuration
+    // during the configuration phase already - on EVERY invocation, including 'build -x test'
+    // and 'bootBuildImage' - and it also breaks the configuration cache.
     val testRuntimeClasspath: FileCollection = configurations.testRuntimeClasspath.get()
     jvmArgumentProviders.add(CommandLineArgumentProvider {
         val agent = testRuntimeClasspath.files.find { it.name.contains("mockito-core") }
@@ -119,9 +119,9 @@ tasks.register<Test>("integrationTest") {
     }
 }
 
-// Das Standard-'test' wuerde ALLES ausfuehren, also auch die Testcontainers-Tests -
-// 'gradlew build' hat damit bisher unbemerkt einen Docker-Daemon vorausgesetzt.
-// Stattdessen haengt 'check' nur an unitTest; integrationTest wird explizit aufgerufen.
+// The standard 'test' task would run EVERYTHING, including the Testcontainers tests -
+// so 'gradlew build' silently required a Docker daemon.
+// Instead 'check' depends on unitTest only; integrationTest is invoked explicitly.
 tasks.named<Test>("test") {
     enabled = false
 }
@@ -130,15 +130,15 @@ tasks.named("check") {
     dependsOn(tasks.named("unitTest"))
 }
 
-// unitTest und integrationTest schreiben getrennte .exec-Dateien - der Report fasst
-// beide zusammen, damit die Abdeckung nicht pro Stage auseinanderfaellt.
-// Wichtig: nur build/jacoco als Input registrieren, nicht das ganze build-Verzeichnis -
-// sonst haelt Gradle jeden Output von unitTest fuer eine undeklarierte Abhaengigkeit.
+// unitTest and integrationTest write separate .exec files - the report merges both, so
+// that coverage does not fall apart per stage.
+// Important: register only build/jacoco as input, not the whole build directory -
+// otherwise Gradle treats every unitTest output as an undeclared dependency.
 tasks.jacocoTestReport {
-    // unitTest liefert die Basisabdeckung und laeuft ohne Docker - deshalb dependsOn.
+    // unitTest provides the baseline coverage and runs without Docker - hence dependsOn.
     dependsOn(tasks.named("unitTest"))
-    // integrationTest ist optional (braucht Docker): nur Reihenfolge erzwingen, damit
-    // 'integrationTest jacocoTestReport' in einem Aufruf funktioniert.
+    // integrationTest is optional (it needs Docker): only enforce ordering, so that
+    // 'integrationTest jacocoTestReport' works in a single invocation.
     mustRunAfter(tasks.named("integrationTest"))
 
     executionData.setFrom(

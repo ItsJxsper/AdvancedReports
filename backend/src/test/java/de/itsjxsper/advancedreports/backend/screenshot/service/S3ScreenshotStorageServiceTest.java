@@ -103,7 +103,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("signiert einen PUT auf einen datierten, eindeutigen Key")
+        @DisplayName("signs a PUT to a dated, unique key")
         void shouldPresignPutUnderDatedKey() {
             when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
@@ -130,7 +130,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("signiert die Dateigröße als Content-Length, damit S3 abweichende Uploads ablehnt")
+        @DisplayName("signs the file size as Content-Length so S3 rejects differing uploads")
         void shouldSignContentLength() {
             when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
@@ -144,7 +144,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("gibt die signierten Header zurück, die der Client mitschicken muss")
+        @DisplayName("returns the signed headers the client has to send")
         void shouldReturnRequiredHeaders() {
             when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
@@ -156,24 +156,24 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("entschärft Pfadanteile und Sonderzeichen im Dateinamen")
+        @DisplayName("sanitises path segments and special characters in the file name")
         void shouldSanitizeFilename() {
             when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
             var presigned = service.presignUpload("../Böse Datei!.PNG", "image/png", 1L);
 
-            // Umlaute, Leerzeichen und "!" werden zu "_", der Name landet komplett in Kleinschreibung,
-            // und alle Pfadtrenner sind verschwunden - der Dateiname kann also nicht mehr aus dem
-            // "screenshots/<datum>/"-Präfix ausbrechen.
+            // Umlauts, spaces and "!" become "_", the name ends up entirely lower case, and every
+            // path separator is gone - so the file name can no longer break out of the
+            // "screenshots/<date>/" prefix.
             assertThat(presigned.objectKey()).matches("screenshots/[^/]+/[0-9a-f-]{36}-[a-z0-9._-]+");
             assertThat(presigned.objectKey()).endsWith("-.._b_se_datei_.png");
             assertThat(presigned.originalFilename())
-                    .as("Der Originalname bleibt für die Anzeige unverändert erhalten")
+                    .as("The original name is kept unchanged for display")
                     .isEqualTo("../Böse Datei!.PNG");
         }
 
         @Test
-        @DisplayName("leitet den Content-Type aus dem Dateinamen ab, wenn keiner mitgeschickt wurde")
+        @DisplayName("derives the content type from the file name when none was sent")
         void shouldGuessContentTypeFromFilename() {
             when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
@@ -181,7 +181,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("fällt auf application/octet-stream zurück, wenn der Typ unbekannt ist")
+        @DisplayName("falls back to application/octet-stream when the type is unknown")
         void shouldFallBackToOctetStream() {
             when(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).thenReturn(presignedPut());
 
@@ -190,7 +190,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("wirft IllegalArgumentException bei einer Dateigröße von null oder kleiner")
+        @DisplayName("throws IllegalArgumentException for a file size of zero or less")
         void shouldRejectNonPositiveFileSize() {
             assertThatThrownBy(() -> service.presignUpload("screenshot.png", "image/png", 0L))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -214,7 +214,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("signiert einen GET inklusive Dateiname und Content-Type")
+        @DisplayName("signs a GET including file name and content type")
         void shouldPresignGetWithFilename() {
             when(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(presignedGet());
 
@@ -238,7 +238,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("wirft IllegalArgumentException bei leerem Object-Key")
+        @DisplayName("throws IllegalArgumentException for an empty object key")
         void shouldRejectBlankObjectKey() {
             assertThatThrownBy(() -> service.presignDownload("  ", "screenshot.png", "image/png"))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -253,7 +253,7 @@ class S3ScreenshotStorageServiceTest {
     class HeadObject {
 
         @Test
-        @DisplayName("liefert Größe und Content-Type des abgelegten Objekts zurück")
+        @DisplayName("returns the size and content type of the stored object")
         void shouldReturnObjectMetadata() {
             when(s3Client.headObject(any(HeadObjectRequest.class)))
                     .thenReturn(HeadObjectResponse.builder()
@@ -269,7 +269,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("gibt ein leeres Optional zurück, wenn das Objekt nicht existiert")
+        @DisplayName("returns an empty Optional when the object does not exist")
         void shouldReturnEmptyForMissingObject() {
             when(s3Client.headObject(any(HeadObjectRequest.class)))
                     .thenThrow(NoSuchKeyException.builder().message("no such key").build());
@@ -278,7 +278,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("gibt ein leeres Optional zurück, wenn S3 mit 404 antwortet")
+        @DisplayName("returns an empty Optional when S3 answers with 404")
         void shouldReturnEmptyForNotFoundStatus() {
             when(s3Client.headObject(any(HeadObjectRequest.class)))
                     .thenThrow(S3Exception.builder().statusCode(404).message("not found").build());
@@ -287,7 +287,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("verpackt jede andere S3Exception in eine ScreenshotStorageException")
+        @DisplayName("wraps every other S3Exception in a ScreenshotStorageException")
         void shouldWrapS3Exception() {
             when(s3Client.headObject(any(HeadObjectRequest.class)))
                     .thenThrow(S3Exception.builder().statusCode(403).message("access denied").build());
@@ -298,7 +298,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("wirft IllegalArgumentException bei leerem Object-Key")
+        @DisplayName("throws IllegalArgumentException for an empty object key")
         void shouldRejectBlankObjectKey() {
             assertThatThrownBy(() -> service.headObject("  "))
                     .isInstanceOf(IllegalArgumentException.class)
@@ -313,7 +313,7 @@ class S3ScreenshotStorageServiceTest {
     class Delete {
 
         @Test
-        @DisplayName("löscht das Objekt aus dem Bucket")
+        @DisplayName("deletes the object from the bucket")
         void shouldDeleteObject() {
             service.delete("screenshots/2026-01-01/abc-screenshot.png");
 
@@ -326,7 +326,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("tut nichts, wenn kein Object-Key übergeben wurde")
+        @DisplayName("does nothing when no object key was passed")
         void shouldIgnoreBlankObjectKey() {
             service.delete("  ");
 
@@ -334,7 +334,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("verpackt eine S3Exception in eine ScreenshotStorageException")
+        @DisplayName("wraps an S3Exception in a ScreenshotStorageException")
         void shouldWrapS3Exception() {
             when(s3Client.deleteObject(any(DeleteObjectRequest.class)))
                     .thenThrow(S3Exception.builder().message("boom").build());
@@ -350,7 +350,7 @@ class S3ScreenshotStorageServiceTest {
     class BuildStorageUri {
 
         @Test
-        @DisplayName("nutzt die konfigurierte Endpoint-URL und entfernt den Slash am Ende")
+        @DisplayName("uses the configured endpoint URL and strips the trailing slash")
         void shouldUseEndpointUrl() {
             configure(BUCKET, "eu-central-1", "http://localhost:9000/");
 
@@ -359,7 +359,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("baut ohne Endpoint eine regionale AWS-URL")
+        @DisplayName("builds a regional AWS URL when there is no endpoint")
         void shouldUseRegionalAwsUrl() {
             configure(BUCKET, "eu-central-1", "");
 
@@ -368,7 +368,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("fällt ohne Endpoint und ohne Region auf ein s3://-Schema zurück")
+        @DisplayName("falls back to an s3:// scheme without an endpoint and without a region")
         void shouldFallBackToS3Scheme() {
             configure(BUCKET, "", "");
 
@@ -377,11 +377,11 @@ class S3ScreenshotStorageServiceTest {
     }
 
     @Nested
-    @DisplayName("Konfigurationsfehler")
+    @DisplayName("Configuration errors")
     class ConfigurationErrors {
 
         @Test
-        @DisplayName("wirft ScreenshotStorageException, wenn kein S3Client verfügbar ist")
+        @DisplayName("throws ScreenshotStorageException when no S3Client is available")
         void shouldFailWithoutS3Client() {
             when(s3ClientProvider.getIfAvailable()).thenReturn(null);
 
@@ -391,7 +391,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotStorageException, wenn kein S3Presigner verfügbar ist")
+        @DisplayName("throws ScreenshotStorageException when no S3Presigner is available")
         void shouldFailWithoutS3Presigner() {
             when(s3PresignerProvider.getIfAvailable()).thenReturn(null);
 
@@ -401,7 +401,7 @@ class S3ScreenshotStorageServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotStorageException, wenn kein Bucket konfiguriert ist")
+        @DisplayName("throws ScreenshotStorageException when no bucket is configured")
         void shouldFailWithoutBucket() {
             configure("", "eu-central-1", "");
 

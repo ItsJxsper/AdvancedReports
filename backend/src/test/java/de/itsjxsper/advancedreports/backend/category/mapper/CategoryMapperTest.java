@@ -3,7 +3,6 @@ package de.itsjxsper.advancedreports.backend.category.mapper;
 import de.itsjxsper.advancedreports.backend.category.data.entity.CategoryEntity;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
 import de.itsjxsper.advancedreports.common.model.catogory.CategoryDto;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,11 +15,11 @@ class CategoryMapperTest {
     private final CategoryMapper mapper = new CategoryMapperImpl();
 
     @Nested
-    @DisplayName("toEntity und toDto")
+    @DisplayName("toEntity and toDto")
     class RoundTrip {
 
         @Test
-        @DisplayName("überträgt Name, Anzeigename, Beschreibung und Cooldown")
+        @DisplayName("carries name, display name, description and cooldown")
         void shouldMapCoreFields() {
             CategoryDto dto = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen", 60L, true);
 
@@ -34,7 +33,7 @@ class CategoryMapperTest {
         }
 
         @Test
-        @DisplayName("bildet eine Entity zurück auf ein DTO ab")
+        @DisplayName("maps an entity back to a DTO")
         void shouldMapBackToDto() {
             CategoryEntity entity = TestDataFactory.category("bugs");
             entity.setId(1L);
@@ -49,7 +48,7 @@ class CategoryMapperTest {
         }
 
         @Test
-        @DisplayName("liefert null für null-Eingaben")
+        @DisplayName("returns null for null input")
         void shouldMapNullToNull() {
             assertThat(mapper.toEntity(null)).isNull();
             assertThat(mapper.toDto(null)).isNull();
@@ -61,7 +60,7 @@ class CategoryMapperTest {
     class PartialUpdate {
 
         @Test
-        @DisplayName("überschreibt nur die im DTO gesetzten Felder")
+        @DisplayName("overwrites only the fields set in the DTO")
         void shouldIgnoreNullValues() {
             CategoryEntity entity = TestDataFactory.category("bugs");
             entity.setId(1L);
@@ -74,16 +73,16 @@ class CategoryMapperTest {
             assertThat(result.getCooldownSec()).isEqualTo(120L);
             // Untouched, because the DTO carried null.
             assertThat(result.getName()).isEqualTo("bugs");
-            assertThat(result.getDescription()).isEqualTo("Beschreibung für bugs");
+            assertThat(result.getDescription()).isEqualTo("Description for bugs");
         }
     }
 
     @Nested
-    @DisplayName("active-Flag")
+    @DisplayName("active flag")
     class ActiveFlag {
 
         @Test
-        @DisplayName("übernimmt active = false aus dem DTO")
+        @DisplayName("takes active = false from the DTO")
         void shouldMapActiveFalse() {
             CategoryDto dto = new CategoryDto(1L, "bugs", "Bugs", "Fehlermeldungen", 60L, false);
 

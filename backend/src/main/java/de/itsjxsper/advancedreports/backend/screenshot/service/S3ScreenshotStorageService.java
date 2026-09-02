@@ -155,7 +155,7 @@ public class S3ScreenshotStorageService {
             log.debug("Screenshot object objectKey={} is not present in S3", objectKey);
             return Optional.empty();
         } catch (S3Exception e) {
-            // HeadObject liefert keinen Body, daher kommt "nicht vorhanden" teils nur als blanker 404 an.
+            // HeadObject returns no body, so "not present" sometimes arrives as a bare 404 only.
             if (e.statusCode() == 404) {
                 log.debug("Screenshot object objectKey={} is not present in S3", objectKey);
                 return Optional.empty();
@@ -219,7 +219,7 @@ public class S3ScreenshotStorageService {
         return bucket;
     }
 
-    // Der Client muss jeden signierten Header exakt so senden, sonst schlägt die Signaturprüfung fehl.
+    // The client has to send every signed header exactly like this, or signature validation fails.
     private Map<String, String> flattenHeaders(Map<String, List<String>> signedHeaders) {
         Map<String, String> headers = new LinkedHashMap<>();
         signedHeaders.forEach((name, values) -> headers.put(name, String.join(",", values)));

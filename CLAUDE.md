@@ -116,4 +116,4 @@ Per-domain conventions to follow when adding a new domain or endpoint:
 - Tests mirror the domain package structure under `backend/src/test/java/.../backend/<domain>/...` — see
   `CategoryServiceTest` for the expected style: `@ExtendWith(MockitoExtension.class)`, `@Mock`/`@InjectMocks` on the
   mapper+repository+service, `@Nested` classes grouping tests per service method, AssertJ (`assertThat`/
-  `assertThatThrownBy`) for assertions, German `@DisplayName`s.
+  `assertThatThrownBy`) for assertions, English `@DisplayName`s.

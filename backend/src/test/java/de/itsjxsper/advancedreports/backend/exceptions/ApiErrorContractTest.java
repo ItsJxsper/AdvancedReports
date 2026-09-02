@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * What is left here is the part the compiler still cannot see: that what the backend serialises is what
  * {@code ApiException.fromHttpResponse} on the client side actually parses back out.
  */
-@DisplayName("API-Fehlervertrag zwischen backend und common")
+@DisplayName("API error contract between backend and common")
 class ApiErrorContractTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -33,16 +33,16 @@ class ApiErrorContractTest {
     class ErrorCodes {
 
         @Test
-        @DisplayName("deckt jeden Not-Found-Code über ApiException#isNotFound ab")
+        @DisplayName("covers every not-found code through ApiException#isNotFound")
         void shouldRecogniseEveryNotFoundCode() {
-            // ApiException#isNotFound zaehlt die *_NOT_FOUND-Codes von Hand auf - ein neuer Code
-            // faellt dort sonst still hinten runter.
+            // ApiException#isNotFound enumerates the *_NOT_FOUND codes by hand - otherwise a new
+            // code silently falls off the end there.
             Arrays.stream(ApiErrorCode.values())
                     .filter(code -> code.name().endsWith("_NOT_FOUND"))
                     .forEach(code -> {
                         ApiException exception = new ApiException(404, code, "not found");
                         assertThat(exception.isNotFound())
-                                .as("ApiException#isNotFound muss %s kennen", code)
+                                .as("ApiException#isNotFound has to know %s", code)
                                 .isTrue();
                     });
         }
@@ -53,7 +53,7 @@ class ApiErrorContractTest {
     class ErrorResponse {
 
         @Test
-        @DisplayName("wird von ApiException.fromHttpResponse aus dem common-Modul verstanden")
+        @DisplayName("is understood by ApiException.fromHttpResponse from the common module")
         void shouldBeParsableByApiException() throws Exception {
             ApiErrorResponse response = new ApiErrorResponse(
                     404, ApiErrorCode.REPORT_NOT_FOUND, "Report with ID 1 was not found");
@@ -69,7 +69,7 @@ class ApiErrorContractTest {
         }
 
         @Test
-        @DisplayName("wird bei einem 429 als Rate-Limit-Fehler erkannt")
+        @DisplayName("is recognised as a rate-limit error on a 429")
         void shouldBeRecognisedAsRateLimited() throws Exception {
             ApiErrorResponse response = new ApiErrorResponse(
                     429, ApiErrorCode.RATE_LIMIT_EXCEEDED, "Rate limit exceeded for: player-1");
@@ -82,10 +82,10 @@ class ApiErrorContractTest {
         }
 
         @Test
-        @DisplayName("überlebt einen Code, den ein älterer Client noch nicht kennt")
+        @DisplayName("survives a code an older client does not know yet")
         void shouldSurviveUnknownErrorCode() {
-            // Die neuen Codes aus dieser Phase erreichen aeltere Plugin-/Bot-Versionen als
-            // unbekannter String - das darf beim Parsen nicht knallen.
+            // The new codes from this phase reach older plugin and bot versions as an unknown
+            // string - parsing must not blow up on that.
             String json = """
                     {"status":400,"code":"EIN_CODE_DEN_ES_NOCH_NICHT_GAB","message":"kaputt"}""";
 

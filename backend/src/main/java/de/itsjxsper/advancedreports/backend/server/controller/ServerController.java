@@ -29,8 +29,8 @@ public class ServerController {
 
     @PostMapping
     @RateLimited
-    // Die UUID kommt vom Client, save() wird damit zu einem merge: registriert sich ein Server
-    // erneut, aktualisiert das seine IP und seinen Port, statt zu kollidieren.
+    // The UUID comes from the client, which makes save() a merge: when a server registers again,
+    // that updates its IP and port instead of colliding.
     @Operation(summary = "Register server",
             description = "Register a Minecraft server under its own UUID. Registering an already "
                     + "known UUID updates that server instead of creating a second one.")

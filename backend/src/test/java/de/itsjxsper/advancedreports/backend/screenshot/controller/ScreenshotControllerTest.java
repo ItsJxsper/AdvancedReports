@@ -58,7 +58,7 @@ class ScreenshotControllerTest {
     class GetAllScreenshots {
 
         @Test
-        @DisplayName("liefert 200 mit einer paginierten Liste")
+        @DisplayName("returns 200 with a paginated list")
         void shouldReturnPagedScreenshots() throws Exception {
             when(screenshotService.getScreenshots(any()))
                     .thenReturn(new PageImpl<>(List.of(screenshotDto)));
@@ -75,7 +75,7 @@ class ScreenshotControllerTest {
     class CreateScreenshot {
 
         @Test
-        @DisplayName("liefert 201 mit den angelegten Metadaten")
+        @DisplayName("returns 201 with the created metadata")
         void shouldCreateScreenshot() throws Exception {
             when(screenshotService.createScreenshot(any())).thenReturn(screenshotDto);
 
@@ -96,7 +96,7 @@ class ScreenshotControllerTest {
                 new ScreenshotUploadRequestDto("screenshot.png", "image/png", 1024L);
 
         @Test
-        @DisplayName("liefert 201 mit der presignten Upload-URL und Status PENDING")
+        @DisplayName("returns 201 with the presigned upload URL and status PENDING")
         void shouldReturnUploadUrl() throws Exception {
             when(screenshotService.requestUpload(any())).thenReturn(new ScreenshotUploadUrlDto(
                     9L, OBJECT_KEY, "https://example.invalid/presigned-put", "PUT",
@@ -114,7 +114,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 400 ILLEGAL_ARGUMENT, wenn die Datei zu groß ist")
+        @DisplayName("returns 400 ILLEGAL_ARGUMENT when the file is too large")
         void shouldReturnBadRequestForOversizedFile() throws Exception {
             when(screenshotService.requestUpload(any()))
                     .thenThrow(new IllegalArgumentException("Screenshot file size 99 exceeds the maximum of 10 bytes"));
@@ -127,7 +127,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 503 SCREENSHOT_STORAGE_ERROR, wenn S3 nicht konfiguriert ist")
+        @DisplayName("returns 503 SCREENSHOT_STORAGE_ERROR when S3 is not configured")
         void shouldReturnServiceUnavailableOnStorageError() throws Exception {
             when(screenshotService.requestUpload(any()))
                     .thenThrow(new ScreenshotStorageException("AWS S3 is not configured"));
@@ -145,7 +145,7 @@ class ScreenshotControllerTest {
     class CompleteUpload {
 
         @Test
-        @DisplayName("liefert 200 mit den bestätigten Metadaten")
+        @DisplayName("returns 200 with the confirmed metadata")
         void shouldCompleteUpload() throws Exception {
             when(screenshotService.completeUpload(9L)).thenReturn(screenshotDto);
 
@@ -156,7 +156,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 409 SCREENSHOT_UPLOAD_INCOMPLETE, wenn das Objekt nicht in S3 liegt")
+        @DisplayName("returns 409 SCREENSHOT_UPLOAD_INCOMPLETE when the object is not in S3")
         void shouldReturnConflictWhenObjectIsMissing() throws Exception {
             when(screenshotService.completeUpload(9L))
                     .thenThrow(new ScreenshotUploadIncompleteException(9L));
@@ -169,7 +169,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Screenshot nicht existiert")
+        @DisplayName("returns 404 SCREENSHOT_NOT_FOUND when the screenshot does not exist")
         void shouldReturnNotFound() throws Exception {
             when(screenshotService.completeUpload(99L))
                     .thenThrow(new ScreenshotNotFoundException(99L));
@@ -185,7 +185,7 @@ class ScreenshotControllerTest {
     class GetScreenshot {
 
         @Test
-        @DisplayName("liefert 200 mit den Metadaten")
+        @DisplayName("returns 200 with the metadata")
         void shouldReturnScreenshot() throws Exception {
             when(screenshotService.getScreenshot(9L)).thenReturn(screenshotDto);
 
@@ -195,7 +195,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Service null zurückgibt")
+        @DisplayName("returns 404 SCREENSHOT_NOT_FOUND when the service returns null")
         void shouldReturnNotFoundOnNull() throws Exception {
             when(screenshotService.getScreenshot(99L)).thenReturn(null);
 
@@ -211,7 +211,7 @@ class ScreenshotControllerTest {
     class GetDownloadUrl {
 
         @Test
-        @DisplayName("liefert 200 mit der presignten Download-URL")
+        @DisplayName("returns 200 with the presigned download URL")
         void shouldReturnDownloadUrl() throws Exception {
             when(screenshotService.getDownloadUrl(9L)).thenReturn(downloadUrlDto);
 
@@ -224,7 +224,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 409 SCREENSHOT_UPLOAD_INCOMPLETE, solange der Upload nicht bestätigt ist")
+        @DisplayName("returns 409 SCREENSHOT_UPLOAD_INCOMPLETE while the upload is unconfirmed")
         void shouldReturnConflictWhilePending() throws Exception {
             when(screenshotService.getDownloadUrl(9L))
                     .thenThrow(new ScreenshotUploadIncompleteException(9L));
@@ -240,7 +240,7 @@ class ScreenshotControllerTest {
     class DownloadScreenshot {
 
         @Test
-        @DisplayName("leitet mit 302 auf die presignte S3-URL um, statt Bytes durchzureichen")
+        @DisplayName("redirects with 302 to the presigned S3 URL instead of proxying bytes")
         void shouldRedirectToPresignedUrl() throws Exception {
             when(screenshotService.getDownloadUrl(9L)).thenReturn(downloadUrlDto);
 
@@ -251,7 +251,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn keine Metadaten existieren")
+        @DisplayName("returns 404 SCREENSHOT_NOT_FOUND when no metadata exists")
         void shouldReturnNotFoundWithoutMetadata() throws Exception {
             when(screenshotService.getDownloadUrl(99L))
                     .thenThrow(new ScreenshotNotFoundException(99L));
@@ -262,7 +262,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 409 SCREENSHOT_UPLOAD_INCOMPLETE, wenn der Upload nie bestätigt wurde")
+        @DisplayName("returns 409 SCREENSHOT_UPLOAD_INCOMPLETE when the upload was never confirmed")
         void shouldReturnConflictWhenUploadIncomplete() throws Exception {
             when(screenshotService.getDownloadUrl(9L))
                     .thenThrow(new ScreenshotUploadIncompleteException(9L));
@@ -278,7 +278,7 @@ class ScreenshotControllerTest {
     class UpdateScreenshot {
 
         @Test
-        @DisplayName("liefert 200 mit den aktualisierten Metadaten")
+        @DisplayName("returns 200 with the updated metadata")
         void shouldUpdateScreenshot() throws Exception {
             when(screenshotService.updateScreenshot(eq(9L), any())).thenReturn(screenshotDto);
 
@@ -291,7 +291,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("liefert 404 SCREENSHOT_NOT_FOUND, wenn der Service null zurückgibt")
+        @DisplayName("returns 404 SCREENSHOT_NOT_FOUND when the service returns null")
         void shouldReturnNotFoundOnNull() throws Exception {
             when(screenshotService.updateScreenshot(eq(99L), any())).thenReturn(null);
 
@@ -305,11 +305,11 @@ class ScreenshotControllerTest {
     }
 
     @Nested
-    @DisplayName("DELETE und count")
+    @DisplayName("DELETE and count")
     class DeleteAndCount {
 
         @Test
-        @DisplayName("DELETE liefert 204 ohne Body")
+        @DisplayName("DELETE returns 204 with no body")
         void shouldDeleteScreenshot() throws Exception {
             mockMvc.perform(delete("/api/v1/screenshots/9"))
                     .andExpect(status().isNoContent())
@@ -319,7 +319,7 @@ class ScreenshotControllerTest {
         }
 
         @Test
-        @DisplayName("GET /count liefert 200 mit der Gesamtanzahl")
+        @DisplayName("GET /count returns 200 with the total count")
         void shouldReturnCount() throws Exception {
             when(screenshotService.countScreenshots()).thenReturn(4L);
 

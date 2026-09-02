@@ -51,8 +51,8 @@ public class ReportsEntity {
     @JoinColumn(name = "category_entity_id", nullable = false)
     private CategoryEntity categoryEntity;
 
-    // @Lob und @JdbcTypeCode(VARCHAR) widersprachen sich: der Type-Code gewann und machte daraus
-    // varchar(255), sodass jeder laengere Grund am Insert scheiterte. LONGVARCHAR ist auf Postgres text.
+    // @Lob and @JdbcTypeCode(VARCHAR) contradicted each other: the type code won and turned this into
+    // varchar(255), so any longer reason failed on insert. LONGVARCHAR maps to text on Postgres.
     @Column(name = "reason")
     @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     private String reason;
@@ -68,8 +68,8 @@ public class ReportsEntity {
     @Column(name = "status", nullable = false)
     private ReportStatus reportStatus;
 
-    // Ein frisch eingegangener Report hat noch keinen Bearbeiter - optional = false und
-    // nullable = false haben genau den Normalfall verboten.
+    // A freshly filed report has no handler yet - optional = false together with nullable = false
+    // forbade exactly the normal case.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "handled_by_player_uuid")
     private PlayerEntity handledBy;
@@ -82,19 +82,19 @@ public class ReportsEntity {
     @JoinColumn(name = "screenshot")
     private ScreenshotEntity screenshotEntity;
 
-    // Vorher ein final-Feld mit Initialisierer, das Hibernate beim Laden reflektiv ueberschreiben
-    // musste. @CreationTimestamp setzt den Wert beim Persistieren, updatable = false schuetzt ihn.
+    // Previously a final field with an initialiser that Hibernate had to overwrite reflectively on
+    // every load. @CreationTimestamp sets the value while persisting, updatable = false protects it.
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    // @PreUpdate ohne @PrePersist liess updatedAt bis zur ersten Aenderung null.
+    // @PreUpdate without @PrePersist left updatedAt null until the first change.
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    // Report-Updates laufen als Lesen-Aendern-Speichern ueber zwei HTTP-Aufrufe; ohne Version
-    // gewinnt stillschweigend der letzte Schreiber.
+    // Report updates run as read-modify-save across two HTTP calls; without a version the last
+    // writer silently wins.
     @Version
     @Column(name = "version", nullable = false)
     private Long version;

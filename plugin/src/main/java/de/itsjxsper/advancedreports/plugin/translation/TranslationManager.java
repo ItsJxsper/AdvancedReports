@@ -82,7 +82,7 @@ public class TranslationManager {
 
         try (URLClassLoader loader = new URLClassLoader(new URL[]{folderUrl}, getClass().getClassLoader())) {
             ResourceBundle bundle = ResourceBundle.getBundle(
-                    BUNDLE_BASE_NAME,   // → sucht i18n_de_DE.properties
+                    BUNDLE_BASE_NAME,   // → looks for i18n_de_DE.properties
                     locale,
                     loader
             );

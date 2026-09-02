@@ -43,8 +43,8 @@ public class ServerService {
         return serverMapper.toDto(serverEntity);
     }
 
-    // Kein eigenes @Transactional: ein reiner Lesevorgang bleibt in der read-only-Transaktion
-    // der Klasse, sonst faellt das Dirty-Checking fuer jede geladene Seite mit an.
+    // No own @Transactional: a pure read stays inside the class-level read-only transaction,
+    // otherwise dirty checking runs for every loaded page as well.
     public Page<ServerDto> getAllServers(int page, int size) {
         log.debug("Getting all servers with page={} and size={}", page, size);
 
@@ -68,9 +68,9 @@ public class ServerService {
         return serverMapper.toDto(savedEntity);
     }
 
-    // Ohne eigenes @Transactional lief das Loeschen in der read-only-Transaktion der Klasse:
-    // Hibernate setzt darin FlushMode.MANUAL, das DELETE wurde nie geflusht und der Endpunkt
-    // meldete 204, obwohl der Server danach weiterhin abrufbar war.
+    // Without its own @Transactional the deletion ran inside the class-level read-only
+    // transaction: Hibernate sets FlushMode.MANUAL there, the DELETE was never flushed and the
+    // endpoint reported 204 even though the server stayed retrievable afterwards.
     @Transactional
     public void deleteServer(UUID serverUUID) {
         log.debug("Deleting server with serverUUID={}", serverUUID);
@@ -78,8 +78,8 @@ public class ServerService {
         ServerEntity serverEntity = this.serverRepository.findById(serverUUID)
                 .orElseThrow(() -> new ServerNotFoundException(serverUUID));
 
-        // reports_entity.server ist nullable: die Reports werden abgehaengt statt mitgeloescht.
-        // Vorher hat orphanRemoval sie zusammen mit dem Server entfernt.
+        // reports_entity.server is nullable: the reports get detached instead of deleted along
+        // with the server. Previously orphanRemoval removed them together with it.
         serverEntity.getReportsEntitiesEntities().forEach(report -> report.setServer(null));
         serverEntity.getReportsEntitiesEntities().clear();
 
@@ -93,8 +93,8 @@ public class ServerService {
 
 
     public long countReportsForServer(UUID serverUUID) {
-        // Ohne Existenzpruefung liefert eine unbekannte UUID 0 - nicht unterscheidbar von einem
-        // registrierten Server ohne Reports.
+        // Without an existence check an unknown UUID returns 0 - indistinguishable from a
+        // registered server that has no reports.
         if (!this.serverRepository.existsById(serverUUID)) {
             throw new ServerNotFoundException(serverUUID);
         }

@@ -3,12 +3,11 @@ package de.itsjxsper.advancedreports.backend.screenshot.data.entity;
 import de.itsjxsper.advancedreports.backend.reports.data.entity.ReportsEntity;
 import de.itsjxsper.advancedreports.common.enums.screenshot.UploadStatus;
 import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
-import lombok.Getter;
-import lombok.Setter;
-
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -22,7 +21,7 @@ public class ScreenshotEntity {
     @Column(name = "id", nullable = false)
     private Long id;
 
-    // "s_3_url" war ein von Hand festgeschriebener Artefaktname der Namensstrategie.
+    // "s_3_url" was a hand-pinned artefact of the naming strategy.
     @Column(name = "s3_url")
     private String s3Url;
 
@@ -42,8 +41,8 @@ public class ScreenshotEntity {
     @Enumerated(EnumType.STRING)
     private UploadStatus uploadStatus;
 
-    // Kein orphanRemoval: ein geloeschter Screenshot ist ein entfernter Anhang, kein Grund den
-    // Report zu vernichten. reports_entity.screenshot ist nullable und wird abgehaengt.
+    // No orphanRemoval: a deleted screenshot is a removed attachment, not a reason to destroy the
+    // report. reports_entity.screenshot is nullable and gets detached.
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

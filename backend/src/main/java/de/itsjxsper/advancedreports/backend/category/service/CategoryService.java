@@ -66,8 +66,8 @@ public class CategoryService {
         var categoryEntity = this.categoryRepository.findWithReportsById(categoryId)
                 .orElseThrow(() -> new CategoryNotFoundException(categoryId));
 
-        // reports_entity.category_entity_id ist NOT NULL - abhaengen geht also nicht. Frueher hat
-        // orphanRemoval die Reports einfach mitgeloescht, und zwar stillschweigend mit 204.
+        // reports_entity.category_entity_id is NOT NULL - so detaching is not an option. Previously
+        // orphanRemoval simply deleted the reports along with it, silently answering 204.
         int reportCount = categoryEntity.getReportsEntities().size();
         if (reportCount > 0) {
             throw new CategoryInUseException(categoryId, reportCount);
@@ -79,8 +79,8 @@ public class CategoryService {
 
     public CategoryDto getCategory(Long categoryId) {
         log.debug("Fetching category with id={}", categoryId);
-        // findById statt findWithReportsById: CategoryDto hat kein Reports-Feld, der EntityGraph hat
-        // hier also nur den kompletten Report-Graph der Kategorie mitgeladen und wieder verworfen.
+        // findById instead of findWithReportsById: CategoryDto has no reports field, so the entity
+        // graph only loaded the category's entire report graph here and threw it away again.
         return this.categoryRepository.findById(categoryId)
                 .map(this.categoryMapper::toDto)
                 .orElseThrow(() -> new CategoryNotFoundException(categoryId));

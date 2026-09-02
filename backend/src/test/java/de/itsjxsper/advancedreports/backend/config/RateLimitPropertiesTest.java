@@ -9,18 +9,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RateLimitPropertiesTest {
 
     @Test
-    @DisplayName("verwendet 100/5/5 Requests pro Sekunde als Voreinstellung")
+    @DisplayName("defaults to 100/5/5 requests per second")
     void shouldUseDocumentedDefaults() {
         RateLimitProperties properties = new RateLimitProperties();
 
-        // Diese Werte sind im README als Standardlimits dokumentiert.
+        // These values are documented in the README as the default limits.
         assertThat(properties.getServerRequestsPerSecond()).isEqualTo(100);
         assertThat(properties.getPlayerRequestsPerSecond()).isEqualTo(5);
         assertThat(properties.getDiscordRequestsPerSecond()).isEqualTo(5);
     }
 
     @Test
-    @DisplayName("lässt sich über Setter überschreiben")
+    @DisplayName("can be overridden through setters")
     void shouldBeOverridable() {
         RateLimitProperties properties = new RateLimitProperties();
 

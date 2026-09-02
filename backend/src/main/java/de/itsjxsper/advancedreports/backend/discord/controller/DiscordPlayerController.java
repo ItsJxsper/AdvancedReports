@@ -87,8 +87,8 @@ public class DiscordPlayerController {
             @PathVariable Long discordPlayerId,
             @Valid @RequestBody DiscordPlayerDto discordPlayerDto) {
         log.debug("Updating Discord Player with id={}", discordPlayerId);
-        // Der Pfad ist massgeblich: bisher wurde discordPlayerId ignoriert und das Ziel allein
-        // aus discordPlayerDto.id() aufgeloest - Pfad und Body konnten also auseinanderlaufen.
+        // The path is authoritative: discordPlayerId used to be ignored and the target resolved
+        // from discordPlayerDto.id() alone - so path and body could drift apart.
         DiscordPlayerDto target = new DiscordPlayerDto(
                 discordPlayerId, discordPlayerDto.playerEntityPlayerUUID(), discordPlayerDto.discordUserId());
 

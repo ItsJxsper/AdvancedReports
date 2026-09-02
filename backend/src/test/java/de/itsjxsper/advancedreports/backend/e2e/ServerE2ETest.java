@@ -1,12 +1,11 @@
 package de.itsjxsper.advancedreports.backend.e2e;
 
-import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
-import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.backend.support.AbstractE2ETest;
 import de.itsjxsper.advancedreports.backend.support.DbFixtures;
 import de.itsjxsper.advancedreports.backend.support.TestDataFactory;
+import de.itsjxsper.advancedreports.common.enums.exceptions.api.ApiErrorCode;
+import de.itsjxsper.advancedreports.common.model.exceptions.ApiErrorResponse;
 import de.itsjxsper.advancedreports.common.model.server.ServerDto;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,18 +21,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * End-to-end coverage for the server endpoints.
  * <p>
  * The read and delete tests still seed their server through SQL: deletion is broken independently
- * of registration (see {@code Loeschen} below), so seeding via REST would tie those tests to a
+ * of registration (see {@code Deleting} below), so seeding via REST would tie those tests to a
  * defect they are not about.
  */
-@DisplayName("E2E: Server")
+@DisplayName("E2E: Servers")
 class ServerE2ETest extends AbstractE2ETest {
 
     @Nested
-    @DisplayName("Registrierung")
+    @DisplayName("Registration")
     class Registration {
 
         @Test
-        @DisplayName("registriert einen Server über einen JSON-Body")
+        @DisplayName("registers a server through a JSON body")
         void shouldCreateServerFromJsonBody() {
             UUID serverUuid = UUID.randomUUID();
 
@@ -52,11 +51,11 @@ class ServerE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Lesen")
+    @DisplayName("Reading")
     class Reading {
 
         @Test
-        @DisplayName("liefert einen Server über seine UUID")
+        @DisplayName("returns a server by its UUID")
         void shouldReturnServerByUuid() {
             UUID serverUuid = DbFixtures.insertServer(dataSource);
 
@@ -72,7 +71,7 @@ class ServerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 SERVER_NOT_FOUND für eine unbekannte UUID")
+        @DisplayName("answers 404 SERVER_NOT_FOUND for an unknown UUID")
         void shouldReturnNotFound() {
             ResponseEntity<ApiErrorResponse> response = client().get()
                     .uri("/api/v1/servers/{uuid}", UUID.randomUUID())
@@ -84,7 +83,7 @@ class ServerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("zählt die registrierten Server")
+        @DisplayName("counts the registered servers")
         void shouldCountServers() {
             DbFixtures.insertServer(dataSource);
             DbFixtures.insertServer(dataSource);
@@ -99,7 +98,7 @@ class ServerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert eine paginierte Serverliste")
+        @DisplayName("returns a paginated list of servers")
         void shouldListServersPaged() {
             DbFixtures.insertServer(dataSource);
             DbFixtures.insertServer(dataSource);
@@ -115,7 +114,7 @@ class ServerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("liefert 0 Reports für einen Server ohne Reports")
+        @DisplayName("returns 0 reports for a server without reports")
         void shouldReturnZeroReportsForNewServer() {
             UUID serverUuid = DbFixtures.insertServer(dataSource);
 
@@ -130,11 +129,11 @@ class ServerE2ETest extends AbstractE2ETest {
     }
 
     @Nested
-    @DisplayName("Löschen")
+    @DisplayName("Deleting")
     class Deleting {
 
         @Test
-        @DisplayName("löscht einen registrierten Server")
+        @DisplayName("deletes a registered server")
         void shouldDeleteServer() {
             UUID serverUuid = DbFixtures.insertServer(dataSource);
 
@@ -152,7 +151,7 @@ class ServerE2ETest extends AbstractE2ETest {
         }
 
         @Test
-        @DisplayName("antwortet mit 404 beim Löschen einer unbekannten UUID")
+        @DisplayName("answers 404 when deleting an unknown UUID")
         void shouldReturnNotFoundOnDeletingUnknownServer() {
             ResponseEntity<ApiErrorResponse> response = client().delete()
                     .uri("/api/v1/servers/{uuid}", UUID.randomUUID())

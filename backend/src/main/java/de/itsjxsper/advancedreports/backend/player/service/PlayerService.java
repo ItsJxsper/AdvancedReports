@@ -34,7 +34,7 @@ public class PlayerService {
 
         PlayerEntity playerEntity = new PlayerEntity();
         playerEntity.setPlayerUuid(playerUpdateDTO.playerUuid());
-        // player_name ist nullable = false, beim Anlegen ist der Name daher Pflicht.
+        // player_name is nullable = false, so the name is mandatory when creating a player.
         playerEntity.setPlayerName(playerUpdateDTO.playerName()
                 .orElseThrow(() -> new IllegalArgumentException("Player name is required when creating a player")));
 
@@ -50,9 +50,8 @@ public class PlayerService {
         var playerEntity = this.playerRepository.findByPlayerUuid(playerUpdateDTO.playerUuid())
                 .orElseThrow(() -> new PlayerNotFoundException(playerUpdateDTO.playerUuid()));
 
-        // PATCH-Semantik: ein leeres Optional bedeutet "Feld nicht mitgeschickt", nicht "auf null
-        // setzen". orElse(null) hat den bestehenden Namen sonst in die NOT-NULL-Spalte hinein
-        // geloescht.
+        // PATCH semantics: an empty Optional means "field not sent", not "set to null".
+        // orElse(null) otherwise wiped the existing name into the NOT NULL column.
         playerUpdateDTO.playerName().ifPresent(playerEntity::setPlayerName);
 
         var savedEntity = this.playerRepository.save(playerEntity);

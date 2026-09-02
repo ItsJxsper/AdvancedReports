@@ -64,7 +64,7 @@ class ScreenshotServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Das @Value-Feld wird ohne Spring-Kontext nicht befuellt und bliebe sonst 0.
+        // The @Value field is not populated without a Spring context and would otherwise stay 0.
         ReflectionTestUtils.setField(screenshotService, "maxUploadSizeBytes", MAX_UPLOAD_SIZE_BYTES);
 
         screenshotEntity = TestDataFactory.screenshot(OBJECT_KEY);
@@ -79,7 +79,7 @@ class ScreenshotServiceTest {
     class CreateScreenshot {
 
         @Test
-        @DisplayName("legt Metadaten an und übernimmt den mitgeschickten Upload-Status")
+        @DisplayName("creates metadata and keeps the upload status that was sent")
         void shouldCreateScreenshotWithGivenStatus() {
             ScreenshotUpdateDto dto = TestDataFactory.screenshotUpdateDto(OBJECT_KEY);
 
@@ -93,7 +93,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("setzt den Upload-Status auf SUCCESS, wenn keiner mitgeschickt wurde")
+        @DisplayName("sets the upload status to SUCCESS when none was sent")
         void shouldDefaultUploadStatusToSuccess() {
             ScreenshotUpdateDto dto = new ScreenshotUpdateDto(null, OBJECT_KEY, "screenshot.png",
                     "image/png", 1024L, null);
@@ -137,7 +137,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("legt die Metadaten als PENDING an und gibt die presignte Upload-URL zurück")
+        @DisplayName("creates the metadata as PENDING and returns the presigned upload URL")
         void shouldReserveMetadataAndReturnUploadUrl() {
             stubPresignAndSave();
 
@@ -163,7 +163,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("übernimmt die Storage-URI in das Feld s3Url")
+        @DisplayName("copies the storage URI into the s3Url field")
         void shouldStoreStorageUri() {
             stubPresignAndSave();
 
@@ -175,7 +175,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("lehnt eine Dateigröße von null oder kleiner ab")
+        @DisplayName("rejects a file size of zero or less")
         void shouldRejectNonPositiveFileSize() {
             ScreenshotUploadRequestDto empty = new ScreenshotUploadRequestDto("screenshot.png", "image/png", 0L);
 
@@ -187,7 +187,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("lehnt Dateien oberhalb des konfigurierten Maximums ab")
+        @DisplayName("rejects files above the configured maximum")
         void shouldRejectFileSizeAboveMaximum() {
             ScreenshotUploadRequestDto tooLarge = new ScreenshotUploadRequestDto(
                     "screenshot.png", "image/png", MAX_UPLOAD_SIZE_BYTES + 1);
@@ -211,7 +211,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("bestätigt das Objekt in S3 und übernimmt die tatsächlichen Metadaten")
+        @DisplayName("confirms the object in S3 and takes over the actual metadata")
         void shouldVerifyObjectAndStoreRealMetadata() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
             when(screenshotStorageService.headObject(OBJECT_KEY))
@@ -223,13 +223,13 @@ class ScreenshotServiceTest {
 
             assertThat(screenshotEntity.getUploadStatus()).isEqualTo(UploadStatus.SUCCESS);
             assertThat(screenshotEntity.getFileSizeBytes())
-                    .as("Die vom Client angekuendigte Groesse wird durch die echte ersetzt")
+                    .as("The size announced by the client is replaced by the real one")
                     .isEqualTo(2048L);
             assertThat(screenshotEntity.getContentType()).isEqualTo("image/jpeg");
         }
 
         @Test
-        @DisplayName("veröffentlicht ein ScreenshotReadyEvent nach erfolgreichem Upload")
+        @DisplayName("publishes a ScreenshotReadyEvent after a successful upload")
         void shouldPublishScreenshotReadyEvent() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
             when(screenshotStorageService.headObject(OBJECT_KEY))
@@ -250,7 +250,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("ist idempotent und sendet bei einem bereits bestätigten Upload kein zweites Event")
+        @DisplayName("is idempotent and sends no second event for an already confirmed upload")
         void shouldBeIdempotent() {
             screenshotEntity.setUploadStatus(UploadStatus.SUCCESS);
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
@@ -263,7 +263,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("markiert den Screenshot als FAILED, wenn das Objekt nicht in S3 liegt")
+        @DisplayName("marks the screenshot FAILED when the object is not in S3")
         void shouldMarkAsFailedWhenObjectIsMissing() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
             when(screenshotStorageService.headObject(OBJECT_KEY)).thenReturn(Optional.empty());
@@ -277,7 +277,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotNotFoundException, wenn der Screenshot nicht existiert")
+        @DisplayName("throws ScreenshotNotFoundException when the screenshot does not exist")
         void shouldThrowWhenNotFound() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
@@ -291,7 +291,7 @@ class ScreenshotServiceTest {
     class GetDownloadUrl {
 
         @Test
-        @DisplayName("gibt eine presignte Download-URL zurück")
+        @DisplayName("returns a presigned download URL")
         void shouldReturnPresignedDownloadUrl() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
             when(screenshotStorageService.presignDownload(OBJECT_KEY, "screenshot.png", "image/png"))
@@ -309,7 +309,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotNotFoundException, wenn der Screenshot nicht existiert")
+        @DisplayName("throws ScreenshotNotFoundException when the screenshot does not exist")
         void shouldThrowWhenNotFound() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
@@ -318,7 +318,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotUploadIncompleteException, solange der Upload nicht bestätigt ist")
+        @DisplayName("throws ScreenshotUploadIncompleteException while the upload is unconfirmed")
         void shouldThrowWhenUploadIsPending() {
             screenshotEntity.setUploadStatus(UploadStatus.PENDING);
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
@@ -330,7 +330,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("wirft ScreenshotUploadIncompleteException, wenn kein Object-Key gesetzt ist")
+        @DisplayName("throws ScreenshotUploadIncompleteException when no object key is set")
         void shouldThrowWhenObjectKeyMissing() {
             screenshotEntity.setS3ObjectKey("  ");
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
@@ -347,7 +347,7 @@ class ScreenshotServiceTest {
     class UpdateScreenshot {
 
         @Test
-        @DisplayName("aktualisiert einen bestehenden Screenshot")
+        @DisplayName("updates an existing screenshot")
         void shouldUpdateScreenshot() {
             ScreenshotUpdateDto dto = TestDataFactory.screenshotUpdateDto(OBJECT_KEY);
 
@@ -361,7 +361,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("gibt null zurück, wenn der Screenshot nicht existiert")
+        @DisplayName("returns null when the screenshot does not exist")
         void shouldReturnNullWhenNotFound() {
             ScreenshotUpdateDto dto = TestDataFactory.screenshotUpdateDto(OBJECT_KEY);
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
@@ -376,7 +376,7 @@ class ScreenshotServiceTest {
     class DeleteScreenshot {
 
         @Test
-        @DisplayName("löscht das S3-Objekt und die Metadaten")
+        @DisplayName("deletes the S3 object and the metadata")
         void shouldDeleteObjectAndEntity() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
 
@@ -387,7 +387,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("löscht kein S3-Objekt, wenn kein Object-Key gesetzt ist")
+        @DisplayName("deletes no S3 object when no object key is set")
         void shouldNotTouchStorageWithoutObjectKey() {
             screenshotEntity.setS3ObjectKey(null);
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
@@ -399,7 +399,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("tut nichts, wenn der Screenshot nicht existiert")
+        @DisplayName("does nothing when the screenshot does not exist")
         void shouldDoNothingWhenNotFound() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
@@ -415,7 +415,7 @@ class ScreenshotServiceTest {
     class ReadOperations {
 
         @Test
-        @DisplayName("liefert die Metadaten zur id zurück")
+        @DisplayName("returns the metadata for the id")
         void shouldReturnScreenshot() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.of(screenshotEntity));
             when(screenshotMapper.toScreenshotDto(screenshotEntity)).thenReturn(screenshotDto);
@@ -424,7 +424,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("gibt null zurück, wenn die Metadaten nicht existieren")
+        @DisplayName("returns null when the metadata does not exist")
         void shouldReturnNullWhenNotFound() {
             when(screenshotRepository.findById(SCREENSHOT_ID)).thenReturn(Optional.empty());
 
@@ -433,11 +433,11 @@ class ScreenshotServiceTest {
     }
 
     @Nested
-    @DisplayName("getScreenshots und countScreenshots")
+    @DisplayName("getScreenshots and countScreenshots")
     class ListOperations {
 
         @Test
-        @DisplayName("liefert eine paginierte Liste zurück")
+        @DisplayName("returns a paginated list")
         void shouldReturnPagedScreenshots() {
             Pageable pageable = PageRequest.of(0, 10);
             when(screenshotRepository.findAll(pageable))
@@ -450,7 +450,7 @@ class ScreenshotServiceTest {
         }
 
         @Test
-        @DisplayName("gibt die Gesamtanzahl der Screenshots zurück")
+        @DisplayName("returns the total number of screenshots")
         void shouldCountScreenshots() {
             when(screenshotRepository.count()).thenReturn(4L);
 
