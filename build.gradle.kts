@@ -3,6 +3,11 @@ plugins {
     id("maven-publish")
 }
 
+// Read outside the subprojects block on purpose: inside it the receiver is the subproject, which has
+// no "libs" extension, so referencing the catalog there fails with
+// "Extension with name 'libs' does not exist".
+val javaToolchain = libs.versions.java.get().toInt()
+
 allprojects {
     group = "de.itsjxsper"
 
@@ -30,7 +35,7 @@ subprojects {
 
     java {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(25))
+            languageVersion.set(JavaLanguageVersion.of(javaToolchain))
         }
         withSourcesJar()
         withJavadocJar()
