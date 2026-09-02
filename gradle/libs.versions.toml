@@ -12,7 +12,7 @@ proxy-java = "21"
 # The version of the published de.itsjxsper:common artifact, for consumers outside this build.
 # Modules inside the monorepo use project(":common") instead, so this pin does not govern them -
 # keep it in step with common/gradle.properties when common is released.
-common = "0.01.0"
+common = "0.0.5"
 
 lombok = "1.18.46"
 jetbrains-annotations = "26.1.0"
