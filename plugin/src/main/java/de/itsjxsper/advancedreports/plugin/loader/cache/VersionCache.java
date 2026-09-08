@@ -2,7 +2,7 @@ package de.itsjxsper.advancedreports.plugin.loader.cache;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import de.itsjxsper.advancedreports.plugin.AdvancedReportsPlugin;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
@@ -16,17 +16,16 @@ import java.util.Map;
 
 
 /**
- * Persists installed versions per dependency (cacheKey -> installed version) in libs/versions.json,
+ * Persists installed versions per dependency (cacheKey -> installed version) in libs/version.json,
  * so no remote check is strictly required on every server start if a known version is already
  * installed locally.
  */
+@Slf4j
 public class VersionCache {
 
     private final Path cacheFile;
     private final Gson gson = new Gson();
     private final Map<String, String> version;
-
-    private final AdvancedReportsPlugin plugin = AdvancedReportsPlugin.getInstance();
 
     public VersionCache(@NonNull Path libsDir) {
         this.cacheFile = libsDir.resolve("version.json");
@@ -46,7 +45,7 @@ public class VersionCache {
             Map<String, String> result = gson.fromJson(reader, type);
             return result != null ? result : new HashMap<>();
         } catch (IOException e) {
-            plugin.getLogger().warning("Failed to load version cache: " + e.getMessage());
+            log.warn("Failed to load version cache: {}", e.getMessage());
             return new HashMap<>();
         }
     }
@@ -68,7 +67,7 @@ public class VersionCache {
                 gson.toJson(version, writer);
             }
         } catch (IOException e) {
-            plugin.getLogger().warning("Failed to save version cache: " + e.getMessage());
+            log.warn("Failed to save version cache: {}", e.getMessage());
         }
     }
 }

@@ -3,7 +3,7 @@ package de.itsjxsper.advancedreports.plugin;
 import io.papermc.paper.plugin.bootstrap.BootstrapContext;
 import io.papermc.paper.plugin.bootstrap.PluginBootstrap;
 
-class AdvancedReportsPluginBootstrap implements PluginBootstrap {
+public class AdvancedReportsPluginBootstrap implements PluginBootstrap {
 
     @Override
     public void bootstrap(final BootstrapContext context) {

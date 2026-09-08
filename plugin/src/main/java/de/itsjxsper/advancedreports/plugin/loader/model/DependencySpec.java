@@ -1,27 +1,37 @@
 package de.itsjxsper.advancedreports.plugin.loader.model;
 
-import org.jetbrains.annotations.Contract;
-import org.jspecify.annotations.NonNull;
+import java.util.regex.Pattern;
 
-public record DependencySpec(Source source, String groupId, String artifactId, String repoUrl, String githubRepo,
-                             String assetNamePattern) {
+/**
+ * Identifies a single artifact distributed through the GitHub Releases of a repository.
+ *
+ * <p>Both the release tag and the release asset follow a fixed naming convention derived from the
+ * artifact id, so the artifact id alone is enough to locate a jar in a monorepo whose releases are
+ * shared between several modules.
+ */
+public record DependencySpec(String githubRepo, String artifactId) {
 
-    @Contract(value = "_, _, _ -> new", pure = true)
-    public static @NonNull DependencySpec maven(String groupId, String artifactId, String repoUrl) {
-        return new DependencySpec(Source.MAVEN_CENTRAL, groupId, artifactId, repoUrl, null, null);
+    /**
+     * Matches the release tags belonging to this artifact, capturing the version.
+     * Tag convention: {@code <artifactId>-v<version>}, e.g. {@code common-v0.00.5}.
+     */
+    public Pattern tagPattern() {
+        return Pattern.compile("^" + Pattern.quote(artifactId) + "-v(.+)$");
     }
 
-    @Contract(value = "_, _ -> new", pure = true)
-    public static @NonNull DependencySpec githubRelease(String githubRepo, String assetNamePattern) {
-        return new DependencySpec(Source.GITHUB_RELEASE, null, null, null, githubRepo, assetNamePattern);
+    /**
+     * Name of the release asset and of the local copy in the libs directory.
+     * Convention: {@code <artifactId>-<version>.jar}, e.g. {@code common-0.00.5.jar}.
+     */
+    public String jarFileName(String version) {
+        return artifactId + "-" + version + ".jar";
     }
 
+    /**
+     * Key under which the installed version is recorded. Includes the artifact id, because a single
+     * repository publishes several artifacts and they must not share a cache entry.
+     */
     public String cacheKey() {
-        return source == Source.MAVEN_CENTRAL ? groupId + ":" + artifactId : "github:" + githubRepo;
-    }
-
-    public enum Source {
-        MAVEN_CENTRAL,
-        GITHUB_RELEASE
+        return "github:" + githubRepo + ":" + artifactId;
     }
 }
